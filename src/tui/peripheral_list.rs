@@ -1,9 +1,9 @@
 use crate::bluetooth::{BleScan, HandledPeripheral};
 use crate::error::Result;
-use crate::route;
-use crate::tui::block::BlendrBlock;
-use crate::tui::search_input::ShouldUpdate;
-use crate::tui::{list, search_input, AppRoute, TerminalBackend};
+use crate::tui::ui::block::BlendrBlock;
+use crate::tui::ui::search_input::ShouldUpdate;
+use crate::tui::ui::{list, search_input};
+use crate::tui::AppRoute;
 use crate::{route::Route, Ctx};
 use crossterm::event::{KeyCode, KeyEvent};
 use regex::Regex;
@@ -133,7 +133,7 @@ impl AppRoute for PeripheralList {
         &mut self,
         area: Rect,
         route_active: bool,
-        f: &mut Frame<TerminalBackend>,
+        f: &mut Frame<super::TerminalBackend>,
     ) -> Result<()> {
         let scan = self.ctx.latest_scan.read();
         let BleScan {

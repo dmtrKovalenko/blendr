@@ -14,12 +14,12 @@ use crate::{
         ConnectedCharacteristic,
     },
     route::Route,
-    tui::{
+    tui::ui::{
         block::{self, BlendrBlock},
         list,
         search_input::{self, ShouldUpdate},
-        AppRoute,
     },
+    tui::AppRoute,
     Ctx,
 };
 use std::{collections::BTreeSet, ops::Deref, sync::Arc};

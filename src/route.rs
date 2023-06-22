@@ -17,6 +17,7 @@ pub enum Route {
     PeripheralList,
     PeripheralWaitingView { peripheral: HandledPeripheral },
     PeripheralConnectedView(ConnectedPeripheral),
+    CharacteristicView(ConnectedCharacteristic),
 }
 
 #[allow(clippy::single_match)]

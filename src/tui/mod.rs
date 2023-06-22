@@ -1,9 +1,7 @@
-mod block;
-mod list;
 mod peripheral_list;
 mod peripheral_view;
-mod search_input;
 mod welcome;
+mod ui;
 use crate::{error::Result, route::Route, tui::peripheral_view::PeripheralView};
 
 use crossterm::{
@@ -61,6 +59,12 @@ impl App {
                 ]
             }
             Route::PeripheralConnectedView(_) => {
+                vec![
+                    BlockVariant::Secondary(&mut self.peripheral_list),
+                    BlockVariant::Primary(&mut self.peripheral_view),
+                ]
+            }
+            Route::CharacteristicView(_) => {
                 vec![
                     BlockVariant::Secondary(&mut self.peripheral_list),
                     BlockVariant::Primary(&mut self.peripheral_view),
