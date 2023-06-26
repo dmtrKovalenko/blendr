@@ -123,6 +123,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         # TODO: if any of the build step fails, the release should be deleted.
         with:
-            files: 'testmest*'
+            files: 'blendr*'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
