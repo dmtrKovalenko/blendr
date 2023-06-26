@@ -61,6 +61,11 @@ jobs:
       - name: Install systemdeps
         run: sudo apt install libdbus-1-dev  
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v0-rust"
+          cache-on-failure: true
+
       - name: Build debug
         uses: actions-rs/cargo@v1
         with:
