@@ -58,9 +58,6 @@ jobs:
           profile: minimal
           override: true
 
-      - name: Install systemdeps
-        run: sudo apt install libdbus-1-dev  
-
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "v0-rust"
@@ -91,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy: 
       matrix:
-        target: [ aarch64-unknown-linux-gnu, armv7-unknown-linux-gnueabihf, i686-unknown-linux-gnu, i686-unknown-linux-musl, mips-unknown-linux-gnu, mips64-unknown-linux-gnuabi64, mips64el-unknown-linux-gnuabi64, mipsel-unknown-linux-gnu, powerpc-unknown-linux-gnu, powerpc64-unknown-linux-gnu, powerpc64le-unknown-linux-gnu,           arm-unknown-linux-gnueabi          ,x86_64-unknown-linux-gnu           ,x86_64-unknown-linux-musl]
+        target: [aarch64-unknown-linux-gnu, armv7-unknown-linux-gnueabihf, i686-unknown-linux-gnu, i686-unknown-linux-musl, mips-unknown-linux-gnu, mips64-unknown-linux-gnuabi64, mips64el-unknown-linux-gnuabi64, mipsel-unknown-linux-gnu, powerpc-unknown-linux-gnu, powerpc64-unknown-linux-gnu, powerpc64le-unknown-linux-gnu,arm-unknown-linux-gnueabi, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl]
     steps:
       - name: Checkout
         uses: actions/checkout@v1
@@ -107,9 +104,6 @@ jobs:
         with:
           prefix-key: "v0-release-rust"
           cache-on-failure: true
-
-      - name: Install systemdeps
-        run: sudo apt install libdbus-1-dev
 
       - name: Build target
         uses: actions-rs/cargo@v1
