@@ -86,10 +86,22 @@ jobs:
     name: deploy
     needs: [test]
     if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.job.os }}
     strategy: 
       matrix:
-        target: [aarch64-unknown-linux-gnu, armv7-unknown-linux-gnueabihf, i686-unknown-linux-gnu, i686-unknown-linux-musl, mips-unknown-linux-gnu, mips64-unknown-linux-gnuabi64, mips64el-unknown-linux-gnuabi64, mipsel-unknown-linux-gnu, powerpc-unknown-linux-gnu, powerpc64-unknown-linux-gnu, powerpc64le-unknown-linux-gnu,arm-unknown-linux-gnueabi, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl]
+        job:
+          - { target: aarch64-unknown-linux-gnu   , os: ubuntu-latest, use-cross: true       }
+          - { target: arm-unknown-linux-gnueabihf , os: ubuntu-latest, use-cross: true       }
+          - { target: arm-unknown-linux-musleabihf, os: ubuntu-latest, use-cross: true       }
+          - { target: i686-pc-windows-msvc        , os: windows-2019                         }
+          - { target: i686-unknown-linux-gnu      , os: ubuntu-latest, use-cross: true       }
+          - { target: i686-unknown-linux-musl     , os: ubuntu-latest, use-cross: true       }
+          - { target: x86_64-apple-darwin         , os: macos-12                             }
+          - { target: aarch64-apple-darwin        , os: macos-12     , need-install: true    }
+          - { target: x86_64-pc-windows-gnu       , os: windows-2019                         }
+          - { target: x86_64-pc-windows-msvc      , os: windows-2019                         }
+          - { target: x86_64-unknown-linux-gnu    , os: ubuntu-latest, use-cross: true       }
+          - { target: x86_64-unknown-linux-musl   , os: ubuntu-latest, use-cross: true       }
     steps:
       - name: Checkout
         uses: actions/checkout@v1
@@ -99,26 +111,30 @@ jobs:
           toolchain: stable
           profile: minimal
           override: true
-          target: ${{ matrix.target }}
+          target: ${{ matrix.job.target }}
 
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "v0-release-rust"
           cache-on-failure: true
 
+      - name: Install target
+        if: ${{ matrix.job.need-install }}
+        run: cargo target add ${{ matrix.job.target }}
+
       - name: Build target
         uses: actions-rs/cargo@v1
         with:
-          use-cross: true
+          use-cross: ${{ matrix.job.use-cross }}}
           command: build
-          args: --release --target ${{ matrix.target }}
+          args: --release --target ${{ matrix.job.target }}
 
       - name: Package
         shell: bash
         run: |
-          #strip target/${{ matrix.target }}/release/blendr
-          cd target/${{ matrix.target }}/release
-          tar czvf ../../../blendr-${{ matrix.target }}.tar.gz blendr
+          #strip target/${{ matrix.job.target }}/release/blendr
+          cd target/${{ matrix.job.target }}/release
+          tar czvf ../../../blendr-${{ matrix.job.target }}.tar.gz blendr
           cd -
       - name: Publish
         uses: softprops/action-gh-release@v1
