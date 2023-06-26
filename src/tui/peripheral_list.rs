@@ -5,6 +5,7 @@ use crate::tui::AppRoute;
 use crate::{route::Route, Ctx};
 use crossterm::event::{KeyCode, KeyEvent};
 use regex::Regex;
+use std::sync::atomic::AtomicU16;
 use std::sync::Arc;
 use tui::layout::Rect;
 use tui::text::Line;
@@ -104,6 +105,7 @@ impl AppRoute for PeripheralList {
                         &mut self.list_state,
                         |peripheral| {
                             Route::PeripheralWaitingView {
+                                retry: Arc::new(AtomicU16::new(0)),
                                 peripheral: peripheral.clone(),
                             }
                             .navigate(&self.ctx)
@@ -197,6 +199,7 @@ impl AppRoute for PeripheralList {
             self.list_state.select(Some(0));
             Route::PeripheralWaitingView {
                 peripheral: filtered_peripherals[0].clone(),
+                retry: Arc::new(AtomicU16::new(0)),
             }
             .navigate(&self.ctx);
         }

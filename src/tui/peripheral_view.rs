@@ -193,15 +193,28 @@ impl AppRoute for PeripheralView {
         let connection = match active_route.deref() {
             Route::PeripheralConnectedView(peripheral) => peripheral,
             Route::CharacteristicView { peripheral, .. } => peripheral,
-            Route::PeripheralWaitingView { peripheral, .. } => {
-                let loading_placeholder = Paragraph::new(Line::from("In progress..."))
-                    .style(Style::default())
-                    .block(tui::widgets::Block::from(BlendrBlock {
-                        focused: false,
-                        title: format!("Connecting to {}", peripheral.name),
-                        route_active,
-                        ..Default::default()
-                    }));
+            Route::PeripheralWaitingView {
+                peripheral, retry, ..
+            } => {
+                let retry = retry.load(std::sync::atomic::Ordering::SeqCst);
+                let loading_placeholder = Paragraph::new(vec![
+                    Line::from(""),
+                    Line::from(vec![
+                        Span::raw("Establishing Connection... "),
+                        if retry > 0 {
+                            Span::from(format!("Retry #{retry}"))
+                        } else {
+                            Span::from("")
+                        },
+                    ]),
+                ])
+                .style(Style::default())
+                .block(tui::widgets::Block::from(BlendrBlock {
+                    focused: false,
+                    title: format!("Connecting to {}", peripheral.name),
+                    route_active,
+                    ..Default::default()
+                }));
 
                 f.render_widget(loading_placeholder, area);
                 return Ok(());

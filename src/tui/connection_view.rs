@@ -139,12 +139,14 @@ impl AppRoute for ConnectionView {
             text.push(Line::from(""));
 
             if let Ok(string_value) = String::from_utf8(value.data.clone()) {
-                text.push(Line::from("UTF-8 text"));
-                text.push(Line::from(Span::styled(
-                    string_value,
-                    Style::default().fg(Color::Cyan),
-                )));
-                text.push(Line::from(""));
+                if !string_value.is_empty() {
+                    text.push(Line::from("UTF-8 text"));
+                    text.push(Line::from(Span::styled(
+                        string_value,
+                        Style::default().fg(Color::Cyan),
+                    )));
+                    text.push(Line::from(""));
+                }
             }
 
             let mut cursor = std::io::Cursor::new(&value.data[..]);

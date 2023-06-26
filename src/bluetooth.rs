@@ -95,7 +95,6 @@ pub struct ConnectedPeripheral {
 
 impl ConnectedPeripheral {
     pub fn new(ctx: &Ctx, peripheral: HandledPeripheral) -> Self {
-        // panic!("{:?}", ctx.args.names_map_file);
         let chars = peripheral.ble_peripheral.characteristics();
 
         Self {

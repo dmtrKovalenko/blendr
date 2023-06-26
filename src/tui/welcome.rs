@@ -113,9 +113,10 @@ impl AppRoute for WelcomeBlock {
         let block = Block::default().borders(Borders::ALL).border_type(tui::widgets::BorderType::Rounded).title(Span::styled(
             " Welcome to Blendr ",
             Style::default()
-                .fg(Color::Rgb(251, 146, 60))
+                .fg(Color::LightMagenta)
                 .add_modifier(Modifier::BOLD),
         ));
+
 
         let paragraph = Paragraph::new(
         vec![

@@ -6,10 +6,10 @@ use crate::{
 use btleplug::api::Peripheral;
 use std::{
     ops::{Deref, DerefMut},
-    sync::{Arc, RwLock},
+    sync::{atomic::AtomicU16, Arc, RwLock},
     time::Duration,
 };
-use tokio::time;
+use tokio::time::{self, timeout};
 
 use crate::bluetooth::HandledPeripheral;
 
@@ -25,6 +25,7 @@ pub enum Route {
     PeripheralConnectedView(ConnectedPeripheral),
     PeripheralWaitingView {
         peripheral: HandledPeripheral,
+        retry: Arc<AtomicU16>,
     },
     CharacteristicView {
         peripheral: ConnectedPeripheral,
@@ -41,7 +42,7 @@ impl Route {
         ctx: &Ctx,
     ) -> error::Result<()> {
         match (previous, self) {
-            (Route::PeripheralList, Route::PeripheralWaitingView { peripheral }) => {
+            (Route::PeripheralList, Route::PeripheralWaitingView { peripheral, retry }) => {
                 while peripheral
                     .ble_peripheral
                     .is_connected()
@@ -49,11 +50,16 @@ impl Route {
                     .map(|c| !c)
                     .unwrap_or(true)
                 {
-                    peripheral.ble_peripheral.connect().await?;
+                    if let Err(e) =
+                        timeout(Duration::from_secs(2), peripheral.ble_peripheral.connect()).await
+                    {
+                        tracing::error!(?e, "Failed to connect to peripheral.");
+                    }
+
+                    retry.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 }
 
                 let mut active_route = ctx.active_route.write().unwrap();
-
                 (*active_route) =
                     Route::PeripheralConnectedView(ConnectedPeripheral::new(ctx, peripheral))
             }
