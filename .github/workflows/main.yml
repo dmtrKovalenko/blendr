@@ -120,7 +120,7 @@ jobs:
 
       - name: Install target
         if: ${{ matrix.job.need-install }}
-        run: cargo target add ${{ matrix.job.target }}
+        run: rustup target add ${{ matrix.job.target }}
 
       - name: Build target
         uses: actions-rs/cargo@v1
