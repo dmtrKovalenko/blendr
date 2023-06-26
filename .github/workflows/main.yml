@@ -58,6 +58,9 @@ jobs:
           profile: minimal
           override: true
 
+      - name: Install systemdeps
+        run: sudo apt install libdbus-1-dev  
+
       - name: Build debug
         uses: actions-rs/cargo@v1
         with:
