@@ -129,6 +129,7 @@ pub struct Ctx {
     active_route: RwLock<route::Route>,
     active_side_effect_handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
     request_scan_restart: Mutex<bool>,
+    global_error: Mutex<Option<crate::error::Error>>,
 }
 
 impl Ctx {
@@ -151,11 +152,17 @@ async fn main() {
         active_side_effect_handle: Mutex::new(None),
         ble_manager: Manager::new()
             .await
-            .expect("Can not estabilish BLE connection."),
+            .expect("Can not establish BLE connection."),
         request_scan_restart: Mutex::new(false),
+        global_error: Mutex::new(None),
     });
 
-    let _scanner = tokio::spawn(bluetooth::start_scan(Arc::clone(&ctx)));
+    let ctx_clone = Arc::clone(&ctx);
+    let _scanner = tokio::spawn(async move {
+        if let Err(e) = bluetooth::start_scan(Arc::clone(&ctx_clone)).await {
+            ctx_clone.global_error.lock().unwrap().replace(e);
+        }
+    });
 
     run_tui_app(ctx).unwrap();
 }

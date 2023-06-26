@@ -1,16 +1,15 @@
-use btleplug::api::Peripheral;
-use tokio::time;
-
 use super::Ctx;
 use crate::{
     bluetooth::{self, ConnectedCharacteristic, ConnectedPeripheral},
     error,
 };
+use btleplug::api::Peripheral;
 use std::{
     ops::{Deref, DerefMut},
     sync::{Arc, RwLock},
     time::Duration,
 };
+use tokio::time;
 
 use crate::bluetooth::HandledPeripheral;
 
@@ -39,7 +38,7 @@ impl Route {
     pub(crate) async fn spawn_navigation_side_effect(
         self,
         previous: &Route,
-        ctx: Arc<Ctx>,
+        ctx: &Ctx,
     ) -> error::Result<()> {
         match (previous, self) {
             (Route::PeripheralList, Route::PeripheralWaitingView { peripheral }) => {
@@ -56,7 +55,7 @@ impl Route {
                 let mut active_route = ctx.active_route.write().unwrap();
 
                 (*active_route) =
-                    Route::PeripheralConnectedView(ConnectedPeripheral::new(&ctx, peripheral))
+                    Route::PeripheralConnectedView(ConnectedPeripheral::new(ctx, peripheral))
             }
             (
                 Route::PeripheralConnectedView(ConnectedPeripheral { peripheral, .. }),
@@ -108,10 +107,14 @@ impl Route {
         let ctx_clone = Arc::clone(ctx);
         let active_handle = tokio::spawn(async move {
             if let Err(e) = self
-                .spawn_navigation_side_effect(&old_route, ctx_clone)
+                .spawn_navigation_side_effect(&old_route, &ctx_clone)
                 .await
             {
                 tracing::error!("Failed to perform navigation side effect: {:?}", e);
+
+                if let Ok(global_error) = ctx_clone.global_error.lock().as_deref_mut() {
+                    *global_error = Some(e);
+                }
             }
         });
 

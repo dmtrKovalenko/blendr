@@ -7,17 +7,15 @@ use crate::{
     },
     Ctx,
 };
-use btleplug::api::{CharPropFlags, Peripheral};
 use byteorder::{ByteOrder, LittleEndian, ReadBytesExt};
 use copypasta::{ClipboardContext, ClipboardProvider};
 use crossterm::event::KeyCode;
 use lazy_static::__Deref;
-use regex::internal::Char;
-use std::{fmt::Display, io::Cursor, sync::Arc};
+use std::{io::Cursor, sync::Arc};
 use tui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Paragraph, Wrap},
 };
 
@@ -123,31 +121,30 @@ impl AppRoute for ConnectionView {
         };
 
         let mut text = vec![];
-        text.push(Spans::from(""));
+        text.push(Line::from(""));
 
-        text.push(Spans::from(format!(
+        text.push(Line::from(format!(
             "Properties: {}",
             display_properties(characteristic.ble_characteristic.properties)
         )));
 
         if let Some(value) = value.read().unwrap().as_ref() {
-            text.push(Spans::from(""));
+            text.push(Line::from(""));
 
-            text.push(Spans::from(format!(
+            text.push(Line::from(format!(
                 "Last updated: {}",
                 value.time.format("%Y-%m-%d %H:%M:%S")
             )));
 
-            text.push(Spans::from(""));
+            text.push(Line::from(""));
 
             if let Ok(string_value) = String::from_utf8(value.data.clone()) {
-                text.push(Spans::from("UTF-8 text"));
-                text.push(Spans::from(Span::styled(
+                text.push(Line::from("UTF-8 text"));
+                text.push(Line::from(Span::styled(
                     string_value,
                     Style::default().fg(Color::Cyan),
                 )));
-
-                text.push(Spans::from(""));
+                text.push(Line::from(""));
             }
 
             let mut cursor = std::io::Cursor::new(&value.data[..]);
@@ -156,17 +153,17 @@ impl AppRoute for ConnectionView {
                 self.float_numbers,
                 self.unsigned_numbers,
             ) {
-                text.push(Spans::from(vec![
+                text.push(Line::from(vec![
                     Span::raw("inferred as "),
                     Span::styled(type_label, Style::default().add_modifier(Modifier::BOLD)),
                 ]));
 
-                text.push(Spans::from(Span::styled(
+                text.push(Line::from(Span::styled(
                     value,
                     Style::default().fg(Color::Green),
                 )));
 
-                text.push(Spans::from(""));
+                text.push(Line::from(""));
             }
 
             let mut hexyl_output_buf = Vec::new();
@@ -182,9 +179,10 @@ impl AppRoute for ConnectionView {
             }
 
             use ansi_to_tui::IntoText;
-            text.extend(hexyl_output_buf.into_text().unwrap().into_iter());
+            let a = hexyl_output_buf.into_text().unwrap().into_iter();
+            text.extend(a);
         } else {
-            text.push(Spans::from("No value received yet"));
+            text.push(Line::from("No value received yet"));
         }
 
         let chunks = Layout::default()
@@ -209,6 +207,7 @@ impl AppRoute for ConnectionView {
                         characteristic.service_name(),
                         characteristic.char_name()
                     ),
+                    ..Default::default()
                 }));
 
         f.render_widget(paragraph, chunks[0]);

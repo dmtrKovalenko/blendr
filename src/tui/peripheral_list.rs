@@ -3,13 +3,12 @@ use crate::error::Result;
 use crate::tui::ui::{block, list, search_input, BlendrBlock, ShouldUpdate};
 use crate::tui::AppRoute;
 use crate::{route::Route, Ctx};
-use btleplug::api::Peripheral;
 use crossterm::event::{KeyCode, KeyEvent};
 use regex::Regex;
 use std::sync::Arc;
 use tui::layout::Rect;
-use tui::text::Spans;
-use tui::widgets::{ListState, Paragraph, Widget, Wrap};
+use tui::text::Line;
+use tui::widgets::{ListState, Paragraph};
 use tui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
@@ -86,7 +85,7 @@ impl AppRoute for PeripheralList {
                             self.list_state.select(Some(0));
                             self.focus = Focus::List
                         }
-                        KeyCode::Esc => {
+                        KeyCode::Esc | KeyCode::Tab => {
                             list::list_unselect(&mut self.list_state);
                             self.focus = Focus::List;
                         }
@@ -112,7 +111,7 @@ impl AppRoute for PeripheralList {
                     );
 
                     match key.code {
-                        KeyCode::Char('/') => {
+                        KeyCode::Char('/') | KeyCode::Tab => {
                             self.focus = Focus::Search;
                             list::list_unselect(&mut self.list_state)
                         }
@@ -150,8 +149,17 @@ impl AppRoute for PeripheralList {
         } = if let Ok(Some(scan)) = scan.as_deref() {
             scan
         } else {
-            // todo add no peripherals handling
-            return Err("no peripherals".into());
+            let loading_placeholder = Paragraph::new(Line::from("In progress..."))
+                .style(Style::default())
+                .block(tui::widgets::Block::from(BlendrBlock {
+                    focused: false,
+                    title: "Connecting to BLE devices",
+                    route_active,
+                    ..Default::default()
+                }));
+
+            f.render_widget(loading_placeholder, area);
+            return Ok(());
         };
 
         let chunks = Layout::default()
@@ -166,7 +174,7 @@ impl AppRoute for PeripheralList {
             )
             .split(area);
 
-        let input = Paragraph::new(Spans(vec![
+        let input = Paragraph::new(Line::from(vec![
             Span::styled(" /", Style::default().fg(Color::DarkGray)),
             Span::from(self.search.as_deref().unwrap_or("")),
         ]))
@@ -175,6 +183,7 @@ impl AppRoute for PeripheralList {
             route_active,
             focused: matches!(self.focus, Focus::Search),
             title: "Filter with regex (press \"/\" to focus)",
+            ..Default::default()
         }));
 
         f.render_widget(input, chunks[0]);
@@ -220,6 +229,7 @@ impl AppRoute for PeripheralList {
                 route_active,
                 focused: matches!(self.focus, Focus::List),
                 title: format!("Latest Scan on {}", sync_time.format("%H:%M:%S")).as_str(),
+                ..Default::default()
             }))
             .highlight_style(
                 Style::default()

@@ -1,6 +1,6 @@
 use tui::{
     style::{Color, Modifier, Style},
-    text::{Span, Spans, Text},
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph, Wrap},
 };
 
@@ -9,6 +9,10 @@ use crate::tui::{AppRoute, TerminalBackend};
 pub struct WelcomeBlock {}
 
 const ASCII_ART: &str = r#"
+
+
+
+
 
 
 
@@ -51,6 +55,9 @@ const ASCII_ART: &str = r#"
 const SMALL_ASCII_ART: &str = r"
 
 
+
+
+ 
 
 
 
@@ -103,18 +110,26 @@ impl AppRoute for WelcomeBlock {
             f.render_widget(paragraph, area);
         }
 
-        let block = Block::default().borders(Borders::ALL).title(Span::styled(
+        let block = Block::default().borders(Borders::ALL).border_type(tui::widgets::BorderType::Rounded).title(Span::styled(
             " Welcome to Blendr ",
             Style::default()
-                .fg(Color::Magenta)
+                .fg(Color::Rgb(251, 146, 60))
                 .add_modifier(Modifier::BOLD),
         ));
 
-        let paragraph = Paragraph::new(vec![Spans::from(
-            "We are already scanning for BLE devices. Search for a specific device on the left via arrows or j/k.",
-        ), Spans::from(""),  Spans::from(
-            "If you know which device you can connect you can use --device <NAME_SEARCH> and --characteristic <CHAR_SEARCH> to connect directly to device.",
-        )])
+        let paragraph = Paragraph::new(
+        vec![
+            Line::from(""),
+            Line::from(
+                "Scanning for BLE devices. Search for a specific device on the left using arrows or j/k.",
+            ), 
+            Line::from(""),  
+            Line::from(
+                "To connect directly to a specific characteristic, use the following args: --device <NAME_SEARCH> and --characteristic <CHAR_SEARCH>.",
+            ), 
+            Line::from(""), 
+            Line::from("You can provide names for your custom GATT services and characteristics by using the --names-map <FILE_PATH> argument if you are working with a specific service or device.")
+        ])
         .wrap(Wrap { trim: true })
         .block(block);
 

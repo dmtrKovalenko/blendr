@@ -3,10 +3,8 @@ use crate::Ctx;
 use btleplug::api::{Central, CharPropFlags, Manager as _, Peripheral, ScanFilter};
 use futures::future::try_join_all;
 use std::borrow::Cow;
-
 use std::iter::Iterator;
 use std::ops::DerefMut;
-use std::ptr::addr_of;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{self, sleep, timeout};
@@ -147,8 +145,6 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
 
     let adapter = &adapter_list[context.args.adapter_index];
     adapter.start_scan(ScanFilter::default()).await?;
-
-    let mut first_match_done = false;
 
     loop {
         let peripherals = adapter.peripherals().await?;

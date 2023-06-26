@@ -1,6 +1,6 @@
 use tui::{
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Paragraph, Widget, Wrap},
 };
 
@@ -9,6 +9,7 @@ pub struct BlendrBlock<T: std::fmt::Display> {
     pub focused: bool,
     pub title: T,
     pub route_active: bool,
+    pub color: Option<Color>,
 }
 
 impl<'a, Title: std::fmt::Display> From<BlendrBlock<Title>> for tui::widgets::Block<'a> {
@@ -16,7 +17,9 @@ impl<'a, Title: std::fmt::Display> From<BlendrBlock<Title>> for tui::widgets::Bl
         tui::widgets::Block::default()
             .title(format!(" {} ", block.title))
             .border_style(if block.route_active && block.focused {
-                Style::default().fg(tui::style::Color::LightBlue)
+                Style::default()
+                    .fg(block.color.unwrap_or(tui::style::Color::LightBlue))
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             })
@@ -44,7 +47,7 @@ pub fn render_help<const N: usize>(help: [Option<(&str, &str, bool)>; N]) -> imp
         })
         .collect();
 
-    Paragraph::new(Spans(spans))
+    Paragraph::new(Line::from(spans))
         .style(Style::default().fg(Color::DarkGray))
         .wrap(Wrap { trim: true })
 }

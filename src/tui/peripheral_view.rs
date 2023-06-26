@@ -4,7 +4,7 @@ use regex::Regex;
 use tui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{List, ListItem, ListState, Paragraph},
 };
 
@@ -82,9 +82,18 @@ impl AppRoute for PeripheralView {
     where
         Self: Sized,
     {
+        let initial_search = ctx.args.characteristic.clone();
+
         PeripheralView {
-            search: ctx.args.characteristic.clone(),
-            search_regex: None,
+            search_regex: match search_input::maybe_update_search_regexp(
+                initial_search.as_deref(),
+                None,
+                &ctx,
+            ) {
+                ShouldUpdate::NoUpdate => None,
+                ShouldUpdate::Update(regex) => regex,
+            },
+            search: initial_search,
             focus: Focus::List,
             list_state: ListState::default(),
             first_match_done: false,
@@ -113,7 +122,7 @@ impl AppRoute for PeripheralView {
                             self.list_state.select(Some(0));
                             self.focus = Focus::List
                         }
-                        KeyCode::Esc => {
+                        KeyCode::Esc | KeyCode::Tab => {
                             list::list_unselect(&mut self.list_state);
                             self.focus = Focus::List;
                         }
@@ -151,7 +160,7 @@ impl AppRoute for PeripheralView {
                     }
 
                     match key.code {
-                        KeyCode::Char('/') => {
+                        KeyCode::Char('/') | KeyCode::Tab => {
                             self.focus = Focus::Search;
                             list::list_unselect(&mut self.list_state)
                         }
@@ -185,12 +194,13 @@ impl AppRoute for PeripheralView {
             Route::PeripheralConnectedView(peripheral) => peripheral,
             Route::CharacteristicView { peripheral, .. } => peripheral,
             Route::PeripheralWaitingView { peripheral, .. } => {
-                let loading_placeholder = Paragraph::new(Spans::from("In progress..."))
+                let loading_placeholder = Paragraph::new(Line::from("In progress..."))
                     .style(Style::default())
                     .block(tui::widgets::Block::from(BlendrBlock {
                         focused: false,
                         title: format!("Connecting to {}", peripheral.name),
                         route_active,
+                        ..Default::default()
                     }));
 
                 f.render_widget(loading_placeholder, area);
@@ -220,7 +230,7 @@ impl AppRoute for PeripheralView {
             )
             .split(area);
 
-        let input = Paragraph::new(Spans(vec![
+        let input = Paragraph::new(Line::from(vec![
             Span::styled(" /", Style::default().fg(Color::DarkGray)),
             Span::from(self.search.as_deref().unwrap_or("")),
         ]))
@@ -229,6 +239,7 @@ impl AppRoute for PeripheralView {
             route_active,
             focused: matches!(self.focus, Focus::Search),
             title: "Filter services or characteristics",
+            ..Default::default()
         }));
 
         f.render_widget(input, chunks[0]);
@@ -245,13 +256,12 @@ impl AppRoute for PeripheralView {
                     || previous_char
                         .is_some_and(|prev_char| prev_char.service_uuid != char.service_uuid)
                 {
-                    spans.push(Spans::from(vec![
+                    spans.push(Line::from(vec![
                         Span::styled("Service ", Style::default().fg(Color::White)),
                         Span::styled(
                             char.service_name(),
                             Style::default()
                                 .add_modifier(Modifier::BOLD)
-                                // .fg(Color::Rgb(252, 211, 77)),
                                 .fg(Color::Rgb(251, 146, 60)),
                         ),
                     ]));
@@ -267,7 +277,7 @@ impl AppRoute for PeripheralView {
                     .unwrap_or_default();
 
                 let char_name = char.char_name();
-                let mut char_spans = Spans::from(vec![
+                let mut char_line = Line::from(vec![
                     Span::styled(if is_highlighted { ">" } else { "•" }, base_style),
                     Span::styled("  ", base_style),
                     Span::styled(
@@ -283,20 +293,14 @@ impl AppRoute for PeripheralView {
                     ),
                 ]);
 
-                let occupied_length = char_spans
-                    .0
-                    .iter()
-                    .fold(0, |acc, span| acc + span.content.len());
-
                 let mut spacer = String::new();
                 // need to fill out the whole line to make highlight work as on general list items
-                for _ in 0..(chunks[1].width as usize).saturating_sub(occupied_length) {
+                for _ in 0..(chunks[1].width as usize).saturating_sub(char_line.width()) {
                     spacer.push(' ');
                 }
 
-                char_spans.0.push(Span::styled(spacer, base_style));
-
-                spans.push(char_spans);
+                char_line.spans.push(Span::styled(spacer, base_style));
+                spans.push(char_line);
 
                 ListItem::new(spans).style(Style::default().fg(Color::Gray))
             })
@@ -311,6 +315,7 @@ impl AppRoute for PeripheralView {
                 connection.peripheral.name,
                 connection.peripheral.ble_peripheral.address()
             ),
+            ..Default::default()
         }));
 
         // We can now render the item list
