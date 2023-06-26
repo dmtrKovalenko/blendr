@@ -103,6 +103,14 @@ jobs:
           override: true
           target: ${{ matrix.target }}
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v0-release-rust"
+          cache-on-failure: true
+
+      - name: Install systemdeps
+        run: sudo apt install libdbus-1-dev
+
       - name: Build target
         uses: actions-rs/cargo@v1
         with:
@@ -113,9 +121,9 @@ jobs:
       - name: Package
         shell: bash
         run: |
-          #strip target/${{ matrix.target }}/release/testmest
-          cd target/${{ matrix.target }}/release          
-          tar czvf ../../../testmest-${{ matrix.target }}.tar.gz testmest
+          #strip target/${{ matrix.target }}/release/blendr
+          cd target/${{ matrix.target }}/release
+          tar czvf ../../../blendr-${{ matrix.target }}.tar.gz blendr
           cd -
       - name: Publish
         uses: softprops/action-gh-release@v1
