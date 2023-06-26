@@ -97,7 +97,7 @@ jobs:
           - { target: i686-unknown-linux-gnu      , os: ubuntu-latest, use-cross: true       }
           - { target: i686-unknown-linux-musl     , os: ubuntu-latest, use-cross: true       }
           - { target: x86_64-apple-darwin         , os: macos-12                             }
-          - { target: aarch64-apple-darwin        , os: macos-12     , need-install: true    }
+          - { target: aarch64-apple-darwin        , os: ubbntu-latest, need-install: true, deps: gcc-aarch64-linux-gnu    }
           - { target: x86_64-pc-windows-gnu       , os: windows-2019                         }
           - { target: x86_64-pc-windows-msvc      , os: windows-2019                         }
           - { target: x86_64-unknown-linux-gnu    , os: ubuntu-latest, use-cross: true       }
@@ -120,7 +120,9 @@ jobs:
 
       - name: Install target
         if: ${{ matrix.job.need-install }}
-        run: rustup target add ${{ matrix.job.target }}
+        run: |
+          sudo apt-get install -y ${{ matrix.job.deps }}
+          rustup target add ${{ matrix.job.target }}
 
       - name: Build target
         uses: actions-rs/cargo@v1
