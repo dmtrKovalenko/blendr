@@ -38,7 +38,7 @@ pub fn handle_key_input<T: Copy>(
                 if selected_index >= list.len() {
                     return;
                 }
-                
+
                 let a = list[selected_index];
                 on_select(a);
             }

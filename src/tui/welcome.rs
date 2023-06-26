@@ -110,24 +110,26 @@ impl AppRoute for WelcomeBlock {
             f.render_widget(paragraph, area);
         }
 
-        let block = Block::default().borders(Borders::ALL).border_type(tui::widgets::BorderType::Rounded).title(Span::styled(
-            " Welcome to Blendr ",
-            Style::default()
-                .fg(Color::LightMagenta)
-                .add_modifier(Modifier::BOLD),
-        ));
-
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(tui::widgets::BorderType::Rounded)
+            .title(Span::styled(
+                " Welcome to Blendr ",
+                Style::default()
+                    .fg(Color::LightMagenta)
+                    .add_modifier(Modifier::BOLD),
+            ));
 
         let paragraph = Paragraph::new(
         vec![
             Line::from(""),
             Line::from(
                 "Scanning for BLE devices. Search for a specific device on the left using arrows or j/k.",
-            ), 
+            ),
             Line::from(""),  
             Line::from(
                 "To connect directly to a specific characteristic, use the following args: --device <NAME_SEARCH> and --characteristic <CHAR_SEARCH>.",
-            ), 
+            ),
             Line::from(""), 
             Line::from("You can provide names for your custom GATT services and characteristics by using the --names-map <FILE_PATH> argument if you are working with a specific service or device.")
         ])
