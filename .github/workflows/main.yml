@@ -1,5 +1,6 @@
-# Instruction + template repo: https://github.com/FedericoPonzi/rust-ci
 name: CI
+permissions:
+  contents: write
 
 on:
   pull_request:
