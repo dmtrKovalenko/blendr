@@ -6,7 +6,7 @@ use crossterm::event::KeyCode;
 
 use crossterm::event::KeyEvent;
 
-pub(crate) fn handle_search_input(current_search: &mut Option<String>, key: &KeyEvent) {
+pub fn handle_search_input(current_search: &mut Option<String>, key: &KeyEvent) {
     match (key.code, current_search.as_mut()) {
         (KeyCode::Char(c), Some(search)) => search.push(c),
         (KeyCode::Backspace, Some(search)) => {
@@ -17,13 +17,13 @@ pub(crate) fn handle_search_input(current_search: &mut Option<String>, key: &Key
     }
 }
 
-pub(crate) enum ShouldUpdate<T> {
+pub enum ShouldUpdate<T> {
     Update(T),
     NoUpdate,
 }
 
 /// Do not parse and compile regex if nothing changes
-pub(crate) fn maybe_update_search_regexp(
+pub fn maybe_update_search_regexp(
     search: Option<&str>,
     last_search: Option<String>,
     ctx: &Ctx,

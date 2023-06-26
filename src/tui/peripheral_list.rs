@@ -1,10 +1,9 @@
 use crate::bluetooth::{BleScan, HandledPeripheral};
 use crate::error::Result;
-use crate::tui::ui::block::BlendrBlock;
-use crate::tui::ui::search_input::ShouldUpdate;
-use crate::tui::ui::{list, search_input};
+use crate::tui::ui::{block, list, search_input, BlendrBlock, ShouldUpdate};
 use crate::tui::AppRoute;
 use crate::{route::Route, Ctx};
+use btleplug::api::Peripheral;
 use crossterm::event::{KeyCode, KeyEvent};
 use regex::Regex;
 use std::sync::Arc;
@@ -15,7 +14,7 @@ use tui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::Span,
-    widgets::{Block, Borders, List, ListItem},
+    widgets::{List, ListItem},
     Frame,
 };
 
@@ -31,6 +30,7 @@ pub(crate) struct PeripheralList {
     pub search_regex: Option<Regex>,
     pub focus: Focus,
     pub to_remove_unknowns: bool,
+    pub first_match_done: bool,
 }
 
 impl PeripheralList {
@@ -56,6 +56,7 @@ impl AppRoute for PeripheralList {
         let initial_search = ctx.args.device.clone();
 
         PeripheralList {
+            first_match_done: false,
             search_regex: match search_input::maybe_update_search_regexp(
                 initial_search.as_deref(),
                 None,
@@ -115,6 +116,13 @@ impl AppRoute for PeripheralList {
                             self.focus = Focus::Search;
                             list::list_unselect(&mut self.list_state)
                         }
+                        KeyCode::Char('r') => {
+                            if let Ok(request_restart) =
+                                self.ctx.request_scan_restart.lock().as_deref_mut()
+                            {
+                                *request_restart = true;
+                            }
+                        }
                         KeyCode::Char('u') => self.to_remove_unknowns = !self.to_remove_unknowns,
                         _ => {}
                     }
@@ -171,17 +179,36 @@ impl AppRoute for PeripheralList {
 
         f.render_widget(input, chunks[0]);
 
-        // Iterate through all elements in the `items` app and append some debug text to it.
-        let items: Vec<ListItem> = peripherals
+        let filtered_peripherals: Vec<_> = peripherals
             .iter()
             .filter(|peripheral| self.filter_peripherals(peripheral))
+            .collect();
+
+        if !self.first_match_done && filtered_peripherals.len() == 1 && self.search.is_some() {
+            self.list_state.select(Some(0));
+            Route::PeripheralWaitingView {
+                peripheral: filtered_peripherals[0].clone(),
+            }
+            .navigate(&self.ctx);
+        }
+
+        if !self.first_match_done && !filtered_peripherals.is_empty() {
+            self.first_match_done = true
+        }
+
+        let items: Vec<ListItem> = filtered_peripherals
+            .into_iter()
             .enumerate()
             .map(|(i, peripheral)| {
                 let is_highlighted = Some(i) == self.list_state.selected();
                 ListItem::new(Span::from(format!(
-                    "{}{}",
+                    "{}{}{}",
                     if is_highlighted { "> " } else { "  " },
-                    peripheral.name
+                    peripheral.name,
+                    match peripheral.rssi {
+                        Some(rssi) => format!(" (rssi {rssi})"),
+                        None => String::from(""),
+                    }
                 )))
                 .style(Style::default().fg(Color::Gray))
             })
@@ -204,12 +231,12 @@ impl AppRoute for PeripheralList {
         f.render_stateful_widget(items, chunks[1], &mut self.list_state);
         if chunks[2].height > 0 {
             f.render_widget(
-                render_help([
-                    ("q", "Quit", false),
-                    ("u", "Hide unknown devices", self.to_remove_unknowns),
-                    ("->", "Connect to device", false),
-                    ("r", "Restart scan", false),
-                    ("h/j or arrows", "Navigate", false),
+                block::render_help([
+                    Some(("q", "Quit", false)),
+                    Some(("u", "Hide unknown devices", self.to_remove_unknowns)),
+                    Some(("->", "Connect to device", false)),
+                    Some(("r", "Restart scan", false)),
+                    Some(("h/j or arrows", "Navigate", false)),
                 ]),
                 chunks[2],
             );
@@ -217,27 +244,4 @@ impl AppRoute for PeripheralList {
 
         Ok(())
     }
-}
-
-fn render_help<const N: usize>(help: [(&str, &str, bool); N]) -> impl Widget {
-    let spans: Vec<_> = help
-        .into_iter()
-        .map(|(key, text, bold)| {
-            const SPACING: &str = "    ";
-            let mut key_span = Span::from(format!("[{key}] {text}{SPACING}"));
-
-            if bold {
-                key_span.style = Style::default()
-                    .add_modifier(Modifier::BOLD)
-                    .fg(Color::Cyan);
-            }
-
-            // 4 spaces is a good spacing between the two helpers
-            key_span
-        })
-        .collect();
-
-    Paragraph::new(Spans(spans))
-        .style(Style::default().fg(Color::DarkGray))
-        .wrap(Wrap { trim: true })
 }

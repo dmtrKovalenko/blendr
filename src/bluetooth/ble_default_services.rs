@@ -196,6 +196,6 @@ lazy_static::lazy_static! {
 pub(crate) fn resolves_special_services() {
     assert_eq!(
         SPECIAL_SERVICES_NAMES.get(&Uuid::from_u128(0x0000180a_0000_1000_8000_00805f9b34fb)),
-        Some(&"Device Information")
+        Some(&"Device Information (0x1800)")
     );
 }

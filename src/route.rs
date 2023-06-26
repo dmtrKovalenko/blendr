@@ -1,4 +1,5 @@
 use btleplug::api::Peripheral;
+use tokio::time;
 
 use super::Ctx;
 use crate::{
@@ -7,22 +8,35 @@ use crate::{
 };
 use std::{
     ops::{Deref, DerefMut},
-    sync::Arc,
+    sync::{Arc, RwLock},
+    time::Duration,
 };
 
 use crate::bluetooth::HandledPeripheral;
 
 #[derive(Debug, Clone)]
+pub struct CharacteristicValue {
+    pub time: chrono::DateTime<chrono::Local>,
+    pub data: Vec<u8>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Route {
     PeripheralList,
-    PeripheralWaitingView { peripheral: HandledPeripheral },
     PeripheralConnectedView(ConnectedPeripheral),
-    CharacteristicView(ConnectedCharacteristic),
+    PeripheralWaitingView {
+        peripheral: HandledPeripheral,
+    },
+    CharacteristicView {
+        peripheral: ConnectedPeripheral,
+        characteristic: ConnectedCharacteristic,
+        value: Arc<RwLock<Option<CharacteristicValue>>>,
+    },
 }
 
 #[allow(clippy::single_match)]
 impl Route {
-    pub(crate) async fn navigation_side_effect(
+    pub(crate) async fn spawn_navigation_side_effect(
         self,
         previous: &Route,
         ctx: Arc<Ctx>,
@@ -42,7 +56,7 @@ impl Route {
                 let mut active_route = ctx.active_route.write().unwrap();
 
                 (*active_route) =
-                    Route::PeripheralConnectedView(ConnectedPeripheral::new(peripheral))
+                    Route::PeripheralConnectedView(ConnectedPeripheral::new(&ctx, peripheral))
             }
             (
                 Route::PeripheralConnectedView(ConnectedPeripheral { peripheral, .. }),
@@ -50,6 +64,28 @@ impl Route {
             ) => {
                 bluetooth::disconnect_with_timeout(&peripheral.ble_peripheral).await;
             }
+            (
+                _,
+                Route::CharacteristicView {
+                    peripheral,
+                    characteristic,
+                    value,
+                },
+            ) => loop {
+                let ble_peripheral = &peripheral.peripheral.ble_peripheral;
+                if let Ok(data) = ble_peripheral
+                    .read(&characteristic.ble_characteristic)
+                    .await
+                {
+                    value.write().unwrap().replace(CharacteristicValue {
+                        time: chrono::Local::now(),
+                        data,
+                    });
+
+                    time::sleep(Duration::from_millis(ctx.args.scan_interval)).await;
+                }
+            },
+
             _ => (),
         }
 
@@ -71,7 +107,10 @@ impl Route {
 
         let ctx_clone = Arc::clone(ctx);
         let active_handle = tokio::spawn(async move {
-            if let Err(e) = self.navigation_side_effect(&old_route, ctx_clone).await {
+            if let Err(e) = self
+                .spawn_navigation_side_effect(&old_route, ctx_clone)
+                .await
+            {
                 tracing::error!("Failed to perform navigation side effect: {:?}", e);
             }
         });

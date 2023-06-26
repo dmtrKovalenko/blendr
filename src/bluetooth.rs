@@ -1,8 +1,12 @@
 use crate::error::{Error, Result};
 use crate::Ctx;
-use btleplug::api::{Central, Manager as _, Peripheral, ScanFilter};
+use btleplug::api::{Central, CharPropFlags, Manager as _, Peripheral, ScanFilter};
 use futures::future::try_join_all;
+use std::borrow::Cow;
+
 use std::iter::Iterator;
+use std::ops::DerefMut;
+use std::ptr::addr_of;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{self, sleep, timeout};
@@ -40,6 +44,7 @@ pub struct HandledPeripheral<TPer: Peripheral = btleplug::platform::Peripheral> 
     pub name_unset: bool,
     pub ble_peripheral: TPer,
     pub name: String,
+    pub rssi: Option<i16>,
 }
 
 #[derive(Debug, Clone)]
@@ -47,8 +52,41 @@ pub struct ConnectedCharacteristic {
     pub ble_characteristic: btleplug::api::Characteristic,
     pub standard_gatt_char_name: Option<&'static str>,
     pub standard_gatt_service_name: Option<&'static str>,
+    /// Name that is coming from custom name map file (if any) from user.
+    pub custom_char_name: Option<String>,
+    pub custom_service_name: Option<String>,
     pub uuid: uuid::Uuid,
     pub service_uuid: uuid::Uuid,
+}
+
+impl ConnectedCharacteristic {
+    pub fn char_name(&self) -> Cow<'_, str> {
+        if let Some(custom_name) = &self.custom_char_name {
+            return Cow::from(format!("{} ({})", custom_name, self.uuid));
+        }
+
+        if let Some(custom_name) = &self.custom_char_name {
+            return Cow::from(custom_name.as_str());
+        }
+
+        if let Some(standard_name) = self.standard_gatt_char_name {
+            return Cow::from(standard_name);
+        }
+
+        Cow::from(self.uuid.to_string())
+    }
+
+    pub fn service_name(&self) -> Cow<'_, str> {
+        if let Some(custom_name) = &self.custom_service_name {
+            return Cow::from(format!("{} ({})", custom_name, self.service_uuid));
+        }
+
+        if let Some(standard_name) = self.standard_gatt_service_name {
+            return Cow::from(standard_name);
+        }
+
+        Cow::from(self.uuid.to_string())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -58,7 +96,8 @@ pub struct ConnectedPeripheral {
 }
 
 impl ConnectedPeripheral {
-    pub fn new(peripheral: HandledPeripheral) -> Self {
+    pub fn new(ctx: &Ctx, peripheral: HandledPeripheral) -> Self {
+        // panic!("{:?}", ctx.args.names_map_file);
         let chars = peripheral.ble_peripheral.characteristics();
 
         Self {
@@ -66,6 +105,16 @@ impl ConnectedPeripheral {
             characteristics: chars
                 .into_iter()
                 .map(|char| ConnectedCharacteristic {
+                    custom_char_name: ctx
+                        .args
+                        .names_map_file
+                        .as_ref()
+                        .and_then(|names| names.get(&char.uuid).cloned()),
+                    custom_service_name: ctx
+                        .args
+                        .names_map_file
+                        .as_ref()
+                        .and_then(|names| names.get(&char.uuid).cloned()),
                     standard_gatt_char_name: ble_default_services::SPECIAL_CHARACTERISTICS_NAMES
                         .get(&char.uuid)
                         .copied(),
@@ -99,8 +148,11 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
     let adapter = &adapter_list[context.args.adapter_index];
     adapter.start_scan(ScanFilter::default()).await?;
 
+    let mut first_match_done = false;
+
     loop {
         let peripherals = adapter.peripherals().await?;
+
         let properties_futures = peripherals
             .iter()
             .map(Peripheral::properties)
@@ -119,6 +171,7 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
 
                     HandledPeripheral {
                         ble_peripheral: peripheral,
+                        rssi: properties.rssi,
                         name,
                         name_unset,
                     }
@@ -132,5 +185,32 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
         });
 
         time::sleep(Duration::from_millis(context.args.scan_interval)).await;
+
+        if matches!(context.request_scan_restart.lock().as_deref(), Ok(true)) {
+            adapter.stop_scan().await?;
+            adapter.start_scan(ScanFilter::default()).await?;
+
+            *context.request_scan_restart.lock()?.deref_mut() = true
+        }
     }
+}
+
+pub fn display_properties(props: CharPropFlags) -> String {
+    let mut labels = Vec::new();
+
+    if props.contains(CharPropFlags::BROADCAST) {
+        labels.push("Broadcast");
+    }
+    if props.contains(CharPropFlags::READ) {
+        labels.push("Read");
+    }
+    if props.contains(CharPropFlags::WRITE) || props.contains(CharPropFlags::WRITE_WITHOUT_RESPONSE)
+    {
+        labels.push("Write");
+    }
+    if props.contains(CharPropFlags::NOTIFY) {
+        labels.push("Notify");
+    }
+
+    labels.join(", ")
 }

@@ -1,4 +1,4 @@
-use btleplug::api::{Characteristic, Peripheral};
+use btleplug::api::Peripheral;
 use crossterm::event::KeyCode;
 use regex::Regex;
 use tui::{
@@ -9,10 +9,7 @@ use tui::{
 };
 
 use crate::{
-    bluetooth::{
-        ble_default_services::{SPECIAL_CHARACTERISTICS_NAMES, SPECIAL_SERVICES_NAMES},
-        ConnectedCharacteristic,
-    },
+    bluetooth::{display_properties, ConnectedCharacteristic},
     route::Route,
     tui::ui::{
         block::{self, BlendrBlock},
@@ -22,7 +19,10 @@ use crate::{
     tui::AppRoute,
     Ctx,
 };
-use std::{collections::BTreeSet, ops::Deref, sync::Arc};
+use std::{
+    ops::Deref,
+    sync::{Arc, RwLock},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Focus {
@@ -34,9 +34,10 @@ pub enum Focus {
 pub struct PeripheralView {
     ctx: Arc<Ctx>,
     list_state: ListState,
-    pub focus: Focus,
-    pub search: Option<String>,
-    pub search_regex: Option<Regex>,
+    focus: Focus,
+    search: Option<String>,
+    search_regex: Option<Regex>,
+    first_match_done: bool,
 }
 
 impl PeripheralView {
@@ -86,6 +87,7 @@ impl AppRoute for PeripheralView {
             search_regex: None,
             focus: Focus::List,
             list_state: ListState::default(),
+            first_match_done: false,
             ctx,
         }
     }
@@ -101,54 +103,65 @@ impl AppRoute for PeripheralView {
                     Route::PeripheralList.navigate(&self.ctx);
                 }
             }
+            Route::PeripheralConnectedView(peripheral)
+            | Route::CharacteristicView { peripheral, .. } => match self.focus {
+                Focus::Search => {
+                    search_input::handle_search_input(&mut self.search, key);
 
-            Route::PeripheralConnectedView(peripheral) => {
-                match self.focus {
-                    Focus::Search => {
-                        search_input::handle_search_input(&mut self.search, key);
-
-                        match key.code {
-                            KeyCode::Enter | KeyCode::Down => {
-                                self.list_state.select(Some(0));
-                                self.focus = Focus::List
-                            }
-                            KeyCode::Esc => {
-                                list::list_unselect(&mut self.list_state);
-                                self.focus = Focus::List;
-                            }
-                            _ => (),
+                    match key.code {
+                        KeyCode::Enter | KeyCode::Down => {
+                            self.list_state.select(Some(0));
+                            self.focus = Focus::List
                         }
-                    }
-                    Focus::List => {
-                        let filtered_peripherals = peripheral
-                            .characteristics
-                            .iter()
-                            .filter(|peripheral| self.filter_characteristic(peripheral))
-                            .collect::<Vec<_>>();
-
-                        list::handle_key_input(
-                            &filtered_peripherals,
-                            &key.code,
-                            &mut self.list_state,
-                            |peripheral| {
-                                // self.ctx.navigate(Route::PeripheralView(peripheral.clone()));
-                            },
-                        );
-
-                        match key.code {
-                            KeyCode::Char('/') => {
-                                self.focus = Focus::Search;
-                                list::list_unselect(&mut self.list_state)
-                            }
-                            KeyCode::Left | KeyCode::Char('d') => {
-                                drop(active_route);
-                                Route::PeripheralList.navigate(&self.ctx)
-                            }
-                            _ => {}
+                        KeyCode::Esc => {
+                            list::list_unselect(&mut self.list_state);
+                            self.focus = Focus::List;
                         }
+                        _ => (),
                     }
                 }
-            }
+                Focus::List => {
+                    let filtered_peripherals = peripheral
+                        .characteristics
+                        .iter()
+                        .filter(|peripheral| self.filter_characteristic(peripheral))
+                        .collect::<Vec<_>>();
+
+                    // todo figure out better way to drop rw lock guard
+                    let mut selected_char = None;
+                    list::handle_key_input(
+                        &filtered_peripherals,
+                        &key.code,
+                        &mut self.list_state,
+                        |characteristic| {
+                            selected_char = Some(characteristic.clone());
+                        },
+                    );
+
+                    let peripheral_clone = peripheral.clone();
+                    drop(active_route);
+
+                    if let Some(characteristic) = selected_char {
+                        Route::CharacteristicView {
+                            characteristic,
+                            peripheral: peripheral_clone,
+                            value: Arc::new(RwLock::new(None)),
+                        }
+                        .navigate(&self.ctx);
+                    }
+
+                    match key.code {
+                        KeyCode::Char('/') => {
+                            self.focus = Focus::Search;
+                            list::list_unselect(&mut self.list_state)
+                        }
+                        KeyCode::Left | KeyCode::Char('d') => {
+                            Route::PeripheralList.navigate(&self.ctx)
+                        }
+                        _ => {}
+                    }
+                }
+            },
 
             _ => (),
         };
@@ -170,6 +183,7 @@ impl AppRoute for PeripheralView {
 
         let connection = match active_route.deref() {
             Route::PeripheralConnectedView(peripheral) => peripheral,
+            Route::CharacteristicView { peripheral, .. } => peripheral,
             Route::PeripheralWaitingView { peripheral, .. } => {
                 let loading_placeholder = Paragraph::new(Spans::from("In progress..."))
                     .style(Style::default())
@@ -187,6 +201,12 @@ impl AppRoute for PeripheralView {
                 return Err(crate::error::Error::client("Invalid route"));
             }
         };
+
+        let filtered_chars = connection
+            .characteristics
+            .iter()
+            .filter(|characteristic| self.filter_characteristic(characteristic))
+            .collect::<Vec<_>>();
 
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -213,12 +233,6 @@ impl AppRoute for PeripheralView {
 
         f.render_widget(input, chunks[0]);
 
-        let filtered_chars = connection
-            .characteristics
-            .iter()
-            .filter(|characteristic| self.filter_characteristic(characteristic))
-            .collect::<Vec<_>>();
-
         let items: Vec<ListItem> = filtered_chars
             .iter()
             .enumerate()
@@ -231,15 +245,20 @@ impl AppRoute for PeripheralView {
                     || previous_char
                         .is_some_and(|prev_char| prev_char.service_uuid != char.service_uuid)
                 {
-                    if let Some(name) = char.standard_gatt_service_name {
-                        spans.push(Spans::from(name));
-                    } else {
-                        spans.push(Spans::from(format!("Service {}", char.service_uuid)));
-                    }
+                    spans.push(Spans::from(vec![
+                        Span::styled("Service ", Style::default().fg(Color::White)),
+                        Span::styled(
+                            char.service_name(),
+                            Style::default()
+                                .add_modifier(Modifier::BOLD)
+                                // .fg(Color::Rgb(252, 211, 77)),
+                                .fg(Color::Rgb(251, 146, 60)),
+                        ),
+                    ]));
                 }
 
                 let is_highlighted = Some(i) == self.list_state.selected();
-                let style = is_highlighted
+                let base_style = is_highlighted
                     .then(|| {
                         Style::default()
                             .bg(Color::LightBlue)
@@ -247,28 +266,37 @@ impl AppRoute for PeripheralView {
                     })
                     .unwrap_or_default();
 
-                let char_uuid = char.uuid.to_string();
-                let char_name = if let Some(name) = char.standard_gatt_char_name {
-                    name
-                } else {
-                    char_uuid.as_str()
-                };
+                let char_name = char.char_name();
+                let mut char_spans = Spans::from(vec![
+                    Span::styled(if is_highlighted { ">" } else { "•" }, base_style),
+                    Span::styled("  ", base_style),
+                    Span::styled(
+                        char_name,
+                        base_style.add_modifier(Modifier::BOLD).fg(Color::White),
+                    ),
+                    Span::styled(
+                        format!(
+                            " [{}]",
+                            display_properties(char.ble_characteristic.properties)
+                        ),
+                        base_style,
+                    ),
+                ]);
 
+                let occupied_length = char_spans
+                    .0
+                    .iter()
+                    .fold(0, |acc, span| acc + span.content.len());
+
+                let mut spacer = String::new();
                 // need to fill out the whole line to make highlight work as on general list items
-                let mut spacer =
-                    String::with_capacity(chunks[1].width as usize - 4 - char_name.len());
-                while spacer.len() < spacer.capacity() {
+                for _ in 0..(chunks[1].width as usize).saturating_sub(occupied_length) {
                     spacer.push(' ');
                 }
 
-                spans.push(Spans::from(Span::styled(
-                    format!(
-                        "{}  {}{spacer}",
-                        if is_highlighted { ">" } else { "•" },
-                        char_name
-                    ),
-                    style,
-                )));
+                char_spans.0.push(Span::styled(spacer, base_style));
+
+                spans.push(char_spans);
 
                 ListItem::new(spans).style(Style::default().fg(Color::Gray))
             })
@@ -290,13 +318,29 @@ impl AppRoute for PeripheralView {
         if chunks[2].height > 0 {
             f.render_widget(
                 block::render_help([
-                    ("/", "Search", false),
-                    ("<- | d", "Disconnect from device", false),
-                    ("->", "View characteristic", false),
-                    ("r", "Reconnect to device scan", false),
+                    Some(("/", "Search", false)),
+                    Some(("<- | d", "Disconnect from device", false)),
+                    Some(("->", "View characteristic", false)),
+                    Some(("r", "Reconnect to device scan", false)),
                 ]),
                 chunks[2],
             );
+        }
+
+        if !self.first_match_done && filtered_chars.len() == 1 {
+            let peripheral = connection.clone();
+            let characteristic = filtered_chars[0].clone();
+
+            self.list_state.select(Some(0));
+            drop(active_route);
+
+            Route::CharacteristicView {
+                characteristic,
+                peripheral,
+                value: Arc::new(RwLock::new(None)),
+            }
+            .navigate(&self.ctx);
+            self.first_match_done = true
         }
 
         Ok(())

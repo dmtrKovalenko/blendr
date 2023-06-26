@@ -1,8 +1,13 @@
+mod connection_view;
 mod peripheral_list;
 mod peripheral_view;
-mod welcome;
 mod ui;
-use crate::{error::Result, route::Route, tui::peripheral_view::PeripheralView};
+mod welcome;
+use crate::{
+    error::Result,
+    route::Route,
+    tui::{connection_view::ConnectionView, peripheral_view::PeripheralView},
+};
 
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent},
@@ -27,6 +32,7 @@ struct App {
     ctx: Arc<Ctx>,
     peripheral_list: peripheral_list::PeripheralList,
     peripheral_view: peripheral_view::PeripheralView,
+    connection_view: connection_view::ConnectionView,
     welcome_screen: welcome::WelcomeBlock,
 }
 
@@ -45,7 +51,7 @@ impl<T> BlockVariant<T> {
 }
 
 impl App {
-    fn get_active_blocks(&mut self) -> Vec<BlockVariant<&mut dyn AppRoute>> {
+    fn get_active_blocks(&mut self, size: u16) -> Vec<BlockVariant<&mut dyn AppRoute>> {
         match self.ctx.get_active_route().deref() {
             Route::PeripheralList => vec![
                 BlockVariant::Primary(&mut self.peripheral_list),
@@ -64,10 +70,17 @@ impl App {
                     BlockVariant::Primary(&mut self.peripheral_view),
                 ]
             }
-            Route::CharacteristicView(_) => {
+            Route::CharacteristicView { .. } if size > 200 => {
                 vec![
                     BlockVariant::Secondary(&mut self.peripheral_list),
                     BlockVariant::Primary(&mut self.peripheral_view),
+                    BlockVariant::Primary(&mut self.connection_view),
+                ]
+            }
+            Route::CharacteristicView { .. } => {
+                vec![
+                    BlockVariant::Primary(&mut self.peripheral_view),
+                    BlockVariant::Primary(&mut self.connection_view),
                 ]
             }
         }
@@ -89,7 +102,7 @@ pub fn run_tui_app(ctx: Arc<Ctx>) -> Result<()> {
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
@@ -101,6 +114,7 @@ pub fn run_tui_app(ctx: Arc<Ctx>) -> Result<()> {
         ctx: Arc::clone(&ctx),
         peripheral_list: PeripheralList::new(Arc::clone(&ctx)),
         peripheral_view: PeripheralView::new(Arc::clone(&ctx)),
+        connection_view: ConnectionView::new(Arc::clone(&ctx)),
         welcome_screen: welcome::WelcomeBlock::new(ctx),
     };
 
@@ -108,11 +122,7 @@ pub fn run_tui_app(ctx: Arc<Ctx>) -> Result<()> {
 
     // restore terminal
     disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
     terminal.show_cursor()?;
 
     if let Err(err) = res {
@@ -142,7 +152,7 @@ fn tui_loop(
                     _ => {}
                 }
 
-                app.get_active_blocks()
+                app.get_active_blocks(terminal.size()?.width)
                     .into_iter()
                     .filter(|block| matches!(block, BlockVariant::Primary(_)))
                     .for_each(|block| {
@@ -159,10 +169,15 @@ fn tui_loop(
 
 fn ui(f: &mut Frame<TerminalBackend>, app: &mut App) {
     // Create two chunks with equal horizontal screen space
-    let active_blocks = app.get_active_blocks();
+    let active_blocks = app.get_active_blocks(f.size().width);
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .constraints(
+            active_blocks
+                .iter()
+                .map(|_| Constraint::Ratio(1, active_blocks.len() as u32))
+                .collect::<Vec<_>>(),
+        )
         .split(f.size());
 
     for (i, block) in active_blocks.into_iter().enumerate() {

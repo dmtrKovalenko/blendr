@@ -6,11 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ansi-to-tui = "2.0.2"
 btleplug = "0.10.5"
+byteorder = "1.4.3"
 chrono = "0.4.26"
 clap = { version = "4.3.4", features = ["derive"] }
+copypasta = "0.8.2"
 crossterm = "0.26.1"
 futures = "0.3.28"
+hexyl = "0.13.0"
 lazy_static = "1.4.0"
 regex = "1.8.4"
 tokio = { version = "1.28", features = ["full", "tracing"] }

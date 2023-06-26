@@ -25,9 +25,10 @@ impl<'a, Title: std::fmt::Display> From<BlendrBlock<Title>> for tui::widgets::Bl
     }
 }
 
-pub fn render_help<const N: usize>(help: [(&str, &str, bool); N]) -> impl Widget {
+pub fn render_help<const N: usize>(help: [Option<(&str, &str, bool)>; N]) -> impl Widget {
     let spans: Vec<_> = help
         .into_iter()
+        .flatten()
         .map(|(key, text, bold)| {
             const SPACING: &str = "    ";
             let mut key_span = Span::from(format!("[{key}] {text}{SPACING}"));
