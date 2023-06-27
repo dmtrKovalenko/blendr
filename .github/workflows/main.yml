@@ -96,7 +96,7 @@ jobs:
           - { target: i686-pc-windows-msvc        , os: windows-2019,  use-cross: true,  need-install: false                                                       }
           - { target: i686-unknown-linux-gnu      , os: ubuntu-latest, use-cross: true ,  need-install: false                                                     }
           - { target: i686-unknown-linux-musl     , os: ubuntu-latest, use-cross: true  ,  need-install: false                                                    }
-          - { target: x86_64-apple-darwin         , os: macos-12,      use-cross: false,  need-install: false                                                                   }
+          # - { target: x86_64-apple-darwin         , os: macos-12,      use-cross: false,  need-install: false                                                                   }
           - { target: aarch64-apple-darwin        , os: ubbntu-latest, use-cross: false, need-install: true, deps: gcc-aarch64-linux-gnu    }
           - { target: x86_64-pc-windows-gnu       , os: windows-2019,  use-cross: false,  need-install: false                                                                    }
           - { target: x86_64-pc-windows-msvc      , os: windows-2019,  use-cross: false,  need-install: false                                                                      }
