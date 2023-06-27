@@ -84,8 +84,8 @@ jobs:
           args: --benches ${{ matrix.features }}
   deploy:
     name: deploy
-    # needs: [test]
-    # if: startsWith(github.ref, 'refs/tags/')
+    needs: [test]
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ${{ matrix.job.os }}
     strategy: 
       matrix:
@@ -144,17 +144,17 @@ jobs:
           command: build
           args: --release --target ${{ matrix.job.target }}
 
-      # - name: Package
-      #   shell: bash
-      #   run: |
-      #     #strip target/${{ matrix.job.target }}/release/blendr
-      #     cd target/${{ matrix.job.target }}/release
-      #     tar czvf ../../../blendr-${{ matrix.job.target }}.tar.gz blendr
-      #     cd -
-      # - name: Publish
-      #   uses: softprops/action-gh-release@v1
-      #   # TODO: if any of the build step fails, the release should be deleted.
-      #   with:
-      #       files: 'blendr*'
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Package
+        shell: bash
+        run: |
+          #strip target/${{ matrix.job.target }}/release/blendr
+          cd target/${{ matrix.job.target }}/release
+          tar czvf ../../../blendr-${{ matrix.job.target }}.tar.gz blendr
+          cd -
+      - name: Publish
+        uses: softprops/action-gh-release@v1
+        # TODO: if any of the build step fails, the release should be deleted.
+        with:
+            files: 'blendr*'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
