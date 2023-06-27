@@ -129,11 +129,11 @@ jobs:
           echo "Job: ${{ matrix.job.target }}"
           echo "Cross: ${{ matrix.job.use-cross }}"
 
-      - name: Build target
+      - name: Build target using cross
         uses: actions-rs/cargo@v1
         if: ${{ matrix.job.use-cross }}
         with:
-          use-cross: true 
+          use-cross: matrix.job.use-cross 
           command: build
           args: --release --target ${{ matrix.job.target }}
 
