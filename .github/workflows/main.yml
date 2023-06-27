@@ -84,7 +84,7 @@ jobs:
           args: --benches ${{ matrix.features }}
   deploy:
     name: deploy
-    needs: [test]
+    # needs: [test]
     # if: startsWith(github.ref, 'refs/tags/')
     runs-on: ${{ matrix.job.os }}
     strategy: 
