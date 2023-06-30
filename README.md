@@ -28,7 +28,7 @@ cargo install blendr
 For Unix OS you can run the following, it will install the binary for your system and provide man reference.
 
 ```
-curl --proto '=https' --tlsv1.2 -sLSf https://github.com/dmtrKovalenko/blendr/blob/main/install.sh?raw=true | sh
+curl --proto '=https' --tlsv1.2 -sLSf "https://github.com/dmtrKovalenko/blendr/blob/main/install.sh?raw=true" | sh
 ```
 
 For windows, it is required to download and run binary executable directly. Open [latest release](https://github.com/dmtrKovalenko/blendr/releases/latest) page and download binary executable for your OS
