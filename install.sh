@@ -52,6 +52,7 @@ install_binary() {
 
   chmod +x blendr
   mv blendr "$install_dir"
+  mv blendr.1 /usr/local/man/man1/
   echo "Binary installed successfully in '$install_dir'!"
 }
 
