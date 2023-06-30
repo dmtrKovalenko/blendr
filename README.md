@@ -7,6 +7,20 @@
 </picture>
 </p>
 
+
+<p align="center">
+ <a href="https://twitter.com/goose_plus_plus">
+   <img alt="Mood: Blue" src="https://img.shields.io/badge/mood-blue-blue?style=for-the-badge">
+ <a href="https://crates.io/crates/blendr">
+ <a href="https://crates.io/crates/blendr">
+   <img alt="Crates.io (version)" src="https://img.shields.io/crates/v/blendr?style=for-the-badge">  
+ </a>
+ <a href="https://github.com/dmtrKovalenko/blendr/blob/main/LICENSE">
+   <img alt="Crates.io" src="https://img.shields.io/crates/l/blendr?style=for-the-badge">
+ </a>
+</p>
+
+
 Blendr is a terminal UI app for browsing BLE (Bluetooth Low Energy) devices. It allows you to inspect, search, connect, and analyze data coming from BLE devices directly from your terminal.
 
 It was designed for day-to-day use by BLE engineers so the core features are **useful search**, direct connection to any characteristic and device with **one command**, and displaying **your custom services names** in the UI. [Learn more](#usage).
