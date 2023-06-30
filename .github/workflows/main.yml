@@ -145,7 +145,7 @@ jobs:
           cargo install cargo-out-dir
           #strip target/${{ matrix.job.target }}/release/blendr
           cd target/${{ matrix.job.target }}/release
-          tar czvf ../../../blendr-${{ matrix.job.target }}.tar.gz $(cargo out-dir)/blendr.1 ../../../LICENSE blendr
+          tar czvf ../../../blendr-${{ matrix.job.target }}.tar.gz "$(cargo out-dir)/blendr.1" ../../../LICENSE blendr
           cd -
       - name: Publish
         uses: softprops/action-gh-release@v1
