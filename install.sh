@@ -30,10 +30,10 @@ install_binary() {
   fi
 
   echo "Downloading binary from '$binary_url'..."
-  echo "curl -OL -H 'Authorization: token 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' "$binary_url""
+  echo "curl -OL -H "$binary_url""
 
   if command_exists "curl"; then
-    curl -LO -H 'Authorization: token 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' "$binary_url"
+    curl -LO "$binary_url"
   elif command_exists "wget"; then
     wget "$binary_url"
   else
