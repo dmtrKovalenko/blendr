@@ -1,6 +1,6 @@
 #!/bin/sh
 
-base_url="https://github.com/dmtrKovalenko/blendr/releases/download/latest"
+base_url="https://github.com/dmtrKovalenko/blendr/releases/latest/download"
 
 # Function to check if a command exists
 command_exists() {
@@ -22,7 +22,7 @@ install_binary() {
   local install_dir=""
 
   if [ "$platform" = "darwin" ]; then
-    install_dir="/usr/local/bin"
+    install_dir="$HOME/.local/bin"
   elif [ "$platform" = "linux" ]; then
     install_dir="/usr/local/bin"
   elif [ "$platform" = "mingw"* ]; then
@@ -48,12 +48,15 @@ install_binary() {
     echo "Downloaded binary '$binary_file' successfully!"
   fi
 
+  echo "$binary_file"
   tar -xzf "$binary_file"
 
   chmod +x blendr
   mv blendr "$install_dir"
-  mv blendr.1 /usr/local/share/man/man1
-  echo "Binary installed successfully in '$install_dir'!"
+  mkdir -p $HOME/share/man/man1
+  mv blendr.1 $HOME/share/man/man1
+
+  rm "$binary_file"
 }
 
 # Determine the platform and architecture
@@ -65,10 +68,10 @@ case "$platform" in
 "darwin")
   case "$arch" in
   "arm64")
-    binary_url="$base_url/latest/download/blendr-aarch64-apple-darwin.tar.gz"
+    binary_url="$base_url/blendr-aarch64-apple-darwin.tar.gz"
     ;;
   "x86_64")
-    binary_url="$base_url/latest/download/blendr-x86_64-apple-darwin.tar.gz"
+    binary_url="$base_url/blendr-x86_64-apple-darwin.tar.gz"
     ;;
   *)
     print_manual_instructions "$base_url"

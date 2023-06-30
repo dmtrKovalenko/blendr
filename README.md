@@ -23,7 +23,7 @@
 
 Blendr is a terminal UI app for browsing BLE (Bluetooth Low Energy) devices. It allows you to inspect, search, connect, and analyze data coming from BLE devices directly from your terminal.
 
-It was designed for day-to-day use by BLE engineers so the core features are **useful search**, direct connection to any characteristic and device with **one command**, and displaying **your custom services names** in the UI. [Learn more](#usage).
+It was designed for day-to-day use by BLE engineers so the core features are **useful search**, direct connection to any characteristic and device with **one command**, and displaying **your custom services names** in the UI. [Learn more](#usage)
 
 <p align="center">
   <img alt="demo" src="./demo.png" />
