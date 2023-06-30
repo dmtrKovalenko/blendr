@@ -124,11 +124,6 @@ jobs:
           sudo apt-get install -y ${{ matrix.job.deps }}
           rustup target add ${{ matrix.job.target }}
 
-      - name: Log job
-        run: | 
-          echo "Job: ${{ matrix.job.target }}"
-          echo "Cross: ${{ matrix.job.use-cross }}"
-
       - name: Build target using cross
         uses: actions-rs/cargo@v1
         if: ${{ matrix.job.use-cross }}
@@ -147,9 +142,10 @@ jobs:
       - name: Package
         shell: bash
         run: |
+          cargo install cargo-out-dir
           #strip target/${{ matrix.job.target }}/release/blendr
           cd target/${{ matrix.job.target }}/release
-          tar czvf ../../../blendr-${{ matrix.job.target }}.tar.gz blendr
+          tar czvf ../../../blendr-${{ matrix.job.target }}.tar.gz $(cargo out-dir)/blendr.1 ../../../LICENSE blendr
           cd -
       - name: Publish
         uses: softprops/action-gh-release@v1

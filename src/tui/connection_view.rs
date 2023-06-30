@@ -205,9 +205,9 @@ impl AppRoute for ConnectionView {
                     route_active,
                     focused: route_active,
                     title: format!(
-                        "Service {} / Characteristic {}",
-                        characteristic.service_name(),
-                        characteristic.char_name()
+                        "Characteristic {} / Service {}",
+                        characteristic.char_name(),
+                        characteristic.service_name()
                     ),
                     ..Default::default()
                 }));
