@@ -17,7 +17,7 @@ It was designed for day-to-day use by BLE engineers so the core features are **u
 
 And it's just perfect to hack your neighbor's toothbrush 😉 
 
-# Installation 
+## Installation 
 
 Cargo cli
 
@@ -33,9 +33,9 @@ curl --proto '=https' --tlsv1.2 -sLSf https://github.com/dmtrKovalenko/blendr/bl
 
 For windows, it is required to download and run binary executable directly. Open [latest release](https://github.com/dmtrKovalenko/blendr/releases/latest) page and download binary executable for your OS
 
-# Prerequisits 
+## Prerequisits 
 
-## MacOS
+### MacOS
 
 To use Bluetooth on MacOS Big Sur (11) or later, you need to either package your binary into an application bundle with an Info.plist including NSBluetoothAlwaysUsageDescription, or (for a command-line application such as the examples included with btleplug) enable the Bluetooth permission for your terminal. You can do the latter by going to System Preferences → Security & Privacy → Privacy → Bluetooth, clicking the '+' button, and selecting 'Terminal' (or iTerm or whichever terminal application you use).
 
@@ -43,7 +43,7 @@ To use Bluetooth on MacOS Big Sur (11) or later, you need to either package your
   <img alt="Bluetooth settings screenshot" src="./bluetooth-macos.png" />
 </p>
 
-# Usage 
+## Usage 
 
 Get the help information with either `man blendr` or `blendr --help` it will print all the available options and characteristics. To get started and learn about the biggest features watch this 2 minutes demo: 
 
@@ -53,7 +53,7 @@ Get the help information with either `man blendr` or `blendr --help` it will pri
   </p>
 </a>
 
-# License 
+## License 
 
 This project is licensed under the terms of BSD-3-Clause license
 
