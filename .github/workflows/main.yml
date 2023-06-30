@@ -8,7 +8,7 @@ on:
     branches:
       - main
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 jobs:
   style:
@@ -31,7 +31,6 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-
 
   test:
     name: Test
@@ -87,21 +86,82 @@ jobs:
     needs: [test]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ${{ matrix.job.os }}
-    strategy: 
+    strategy:
       matrix:
         job:
-          - { target: aarch64-unknown-linux-gnu   , os: ubuntu-latest, use-cross: true,   need-install: false                                }
-          - { target: arm-unknown-linux-gnueabihf , os: ubuntu-latest, use-cross: true,   need-install: false                                }
-          - { target: arm-unknown-linux-musleabihf, os: ubuntu-latest, use-cross: true,   need-install: false                                }
-          - { target: i686-pc-windows-msvc        , os: windows-2019,  use-cross: true,   need-install: false                                }
-          - { target: i686-unknown-linux-gnu      , os: ubuntu-latest, use-cross: true,   need-install: false                                }
-          - { target: i686-unknown-linux-musl     , os: ubuntu-latest, use-cross: true,   need-install: false                                }
-          - { target: x86_64-apple-darwin         , os: macos-12,      use-cross: false,  need-install: false                                }
-          - { target: aarch64-apple-darwin        , os: macos-12,      use-cross: false,  need-install: false,   deps: gcc-aarch64-linux-gnu }
-          - { target: x86_64-pc-windows-gnu       , os: windows-2019,  use-cross: false,  need-install: false                                }
-          - { target: x86_64-pc-windows-msvc      , os: windows-2019,  use-cross: false,  need-install: false                                }
-          - { target: x86_64-unknown-linux-gnu    , os: ubuntu-latest, use-cross: true,   need-install: false                                }
-          - { target: x86_64-unknown-linux-musl   , os: ubuntu-latest, use-cross: true,   need-install: false                                }
+          - {
+              target: aarch64-unknown-linux-gnu,
+              os: ubuntu-latest,
+              use-cross: true,
+              need-install: false,
+            }
+          - {
+              target: arm-unknown-linux-gnueabihf,
+              os: ubuntu-latest,
+              use-cross: true,
+              need-install: false,
+            }
+          - {
+              target: arm-unknown-linux-musleabihf,
+              os: ubuntu-latest,
+              use-cross: true,
+              need-install: false,
+            }
+          - {
+              target: i686-pc-windows-msvc,
+              os: windows-2019,
+              use-cross: true,
+              need-install: false,
+            }
+          - {
+              target: i686-unknown-linux-gnu,
+              os: ubuntu-latest,
+              use-cross: true,
+              need-install: false,
+            }
+          - {
+              target: i686-unknown-linux-musl,
+              os: ubuntu-latest,
+              use-cross: true,
+              need-install: false,
+            }
+          - {
+              target: x86_64-apple-darwin,
+              os: macos-12,
+              use-cross: false,
+              need-install: false,
+            }
+          - {
+              target: aarch64-apple-darwin,
+              os: macos-12,
+              use-cross: false,
+              need-install: false,
+              deps: gcc-aarch64-linux-gnu,
+            }
+          - {
+              target: x86_64-pc-windows-gnu,
+              os: windows-2019,
+              use-cross: false,
+              need-install: false,
+            }
+          - {
+              target: x86_64-pc-windows-msvc,
+              os: windows-2019,
+              use-cross: false,
+              need-install: false,
+            }
+          - {
+              target: x86_64-unknown-linux-gnu,
+              os: ubuntu-latest,
+              use-cross: true,
+              need-install: false,
+            }
+          - {
+              target: x86_64-unknown-linux-musl,
+              os: ubuntu-latest,
+              use-cross: true,
+              need-install: false,
+            }
     steps:
       - name: Checkout
         uses: actions/checkout@v1
@@ -128,7 +188,7 @@ jobs:
         uses: actions-rs/cargo@v1
         if: ${{ matrix.job.use-cross }}
         with:
-          use-cross: true 
+          use-cross: true
           command: build
           args: --release --target ${{ matrix.job.target }}
 
@@ -160,6 +220,38 @@ jobs:
         uses: softprops/action-gh-release@v1
         # TODO: if any of the build step fails, the release should be deleted.
         with:
-            files: 'blendr*'
+          files: "blendr*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish cargo package
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CARGO_TOKEN }}
+
+  publish:
+    name: Publish cargo package
+    needs: [deploy]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v0-release-rust"
+          cache-on-failure: true
+      - name: Publish cargo package
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CARGO_TOKEN }}

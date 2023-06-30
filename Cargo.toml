@@ -1,9 +1,12 @@
 [package]
 name = "blendr"
-version = "0.1.4"
+version = "0.12.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "diesel"
+path = "src/main.rs"
+doc = false
 
 [dependencies]
 ansi-to-tui = "3.0.0"
