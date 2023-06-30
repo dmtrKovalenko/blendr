@@ -158,8 +158,12 @@ jobs:
           cd target/${{ matrix.job.target }}/release
 
           mkdir out
+          echo "Copying binary"
           mv blendr out/blendr
+          echo "Copying license"
           mv ../../../LICENSE out/LICENSE
+          echo "Copying man file"
+          ls $OUTPUT_MAN_FILE
           mv $OUTPUT_MAN_FILE out/blendr.1
 
           cd out
