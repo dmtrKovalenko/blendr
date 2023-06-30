@@ -141,12 +141,14 @@ jobs:
 
       - name: Resolve man file on unix
         if : ${{ matrix.job.os != 'windows-2019' }}
+        shell: bash
         run: | 
           cargo install cargo-out-dir
           export OUTPUT_MAN_FILE="$(cargo out-dir)/blendr.1"
 
       - name: Resolve man file on windows
         if : ${{ matrix.job.os == 'windows-2019' }}
+        shell: bash
         run: | 
           cargo install cargo-out-dir
           export OUTPUT_MAN_FILE ="$(cargo out-dir)\blendr.1"
@@ -163,7 +165,8 @@ jobs:
           echo "Copying license"
           mv ../../../LICENSE out/LICENSE
           echo "Copying man file"
-          ls $OUTPUT_MAN_FILE
+          echo $OUTPUT_MAN_FILE
+          pwd $OUTPUT_MAN_FILE
           mv $OUTPUT_MAN_FILE out/blendr.1
 
           cd out
