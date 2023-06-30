@@ -1,6 +1,6 @@
 [package]
 name = "blendr"
-version = "0.12.0"
+version = "0.13.0"
 edition = "2021"
 description = "The hacker's BLE (bluetooth low energy) browser terminal app"
 license = "BSD-3-Clause"
