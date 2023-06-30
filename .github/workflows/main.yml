@@ -143,13 +143,13 @@ jobs:
         if : ${{ matrix.job.os != 'windows-2019' }}
         run: | 
           cargo install cargo-out-dir
-          OUTPUT_MAN_FILE = $(cargo out-dir)/blendr.1
+          export OUTPUT_MAN_FILE = $(cargo out-dir)/blendr.1
 
       - name: Resolve man file on windows
         if : ${{ matrix.job.os == 'windows-2019' }}
         run: | 
           cargo install cargo-out-dir
-          OUTPUT_MAN_FILE = $(cargo out-dir)\blendr.1
+          export OUTPUT_MAN_FILE = $(cargo out-dir)\blendr.1
 
       - name: Package
         shell: bash
