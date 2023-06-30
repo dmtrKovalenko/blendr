@@ -139,20 +139,6 @@ jobs:
           command: build
           args: --release --target ${{ matrix.job.target }}
 
-      - name: Resolve man file on unix
-        if : ${{ matrix.job.os != 'windows-2019' }}
-        shell: bash
-        run: | 
-          cargo install cargo-out-dir
-          export OUTPUT_MAN_FILE="$(cargo out-dir)/blendr.1"
-
-      - name: Resolve man file on windows
-        if : ${{ matrix.job.os == 'windows-2019' }}
-        shell: bash
-        run: | 
-          cargo install cargo-out-dir
-          export OUTPUT_MAN_FILE ="$(cargo out-dir)\blendr.1"
-
       - name: Package
         shell: bash
         run: |
@@ -162,12 +148,10 @@ jobs:
           mkdir out
           echo "Copying binary"
           mv blendr out/blendr
+          echo "Copying man file"
+          mv blendr.1 out/blendr.1
           echo "Copying license"
           mv ../../../LICENSE out/LICENSE
-          echo "Copying man file"
-          echo $OUTPUT_MAN_FILE
-          pwd $OUTPUT_MAN_FILE
-          mv $OUTPUT_MAN_FILE out/blendr.1
 
           cd out
           tar czvf ../../../../blendr-${{ matrix.job.target }}.tar.gz *

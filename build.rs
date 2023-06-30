@@ -5,7 +5,10 @@ mod cli_args;
 
 fn main() -> std::io::Result<()> {
     let out_dir =
-        std::path::PathBuf::from(std::env::var_os("OUT_DIR").ok_or(std::io::ErrorKind::NotFound)?);
+        // This is a hack to get the root of the project, since OUT_DIR is relative to the build
+        // Super simplifies CI and locating man files after output.
+        std::path::PathBuf::from(std::env::var_os("OUT_DIR").ok_or(std::io::ErrorKind::NotFound)?)
+            .join("../../..");
 
     let cmd = cli_args::Args::command();
     let man = clap_mangen::Man::new(cmd);
