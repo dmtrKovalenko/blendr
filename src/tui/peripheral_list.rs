@@ -40,11 +40,19 @@ impl PeripheralList {
         }
 
         if let Some(regex) = self.search_regex.as_ref() {
-            return regex.is_match(&peripheral.name);
+            return regex.is_match(&peripheral.name)
+                || peripheral
+                    .services_names
+                    .iter()
+                    .any(|name| regex.is_match(name));
         }
 
         if let Some(search) = self.search.as_ref() {
-            return peripheral.name.contains(search);
+            return peripheral.name.contains(search)
+                || peripheral
+                    .services_names
+                    .iter()
+                    .any(|name| name.contains(search));
         }
 
         true

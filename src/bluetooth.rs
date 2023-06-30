@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::Ctx;
-use btleplug::api::{Central, CharPropFlags, Manager as _, Peripheral, ScanFilter};
+use btleplug::api::{BDAddr, Central, CharPropFlags, Manager as _, Peripheral, ScanFilter};
 use futures::future::try_join_all;
 use std::borrow::Cow;
 use std::iter::Iterator;
@@ -41,8 +41,10 @@ pub async fn disconnect_with_timeout(peripheral: &btleplug::platform::Peripheral
 pub struct HandledPeripheral<TPer: Peripheral = btleplug::platform::Peripheral> {
     pub name_unset: bool,
     pub ble_peripheral: TPer,
+    pub address: BDAddr,
     pub name: String,
     pub rssi: Option<i16>,
+    pub services_names: Vec<Cow<'static, str>>,
 }
 
 #[derive(Debug, Clone)]
@@ -166,9 +168,33 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
 
                     HandledPeripheral {
                         ble_peripheral: peripheral,
+                        address: properties.address,
                         rssi: properties.rssi,
                         name,
                         name_unset,
+                        services_names: properties
+                            .services
+                            .iter()
+                            .flat_map(|uuid| {
+                                let custom_name = context
+                                    .args
+                                    .names_map_file
+                                    .as_ref()
+                                    .and_then(|names| names.get(uuid).cloned());
+
+                                let standard_name = ble_default_services::SPECIAL_SERVICES_NAMES
+                                    .get(uuid)
+                                    .copied();
+
+                                let uuid_str = uuid.to_string();
+                                vec![
+                                    custom_name.map(Cow::from),
+                                    standard_name.map(Cow::from),
+                                    Some(Cow::from(uuid_str)),
+                                ]
+                            })
+                            .flatten()
+                            .collect(),
                     }
                 })
             })

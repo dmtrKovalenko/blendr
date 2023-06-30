@@ -325,8 +325,7 @@ impl AppRoute for PeripheralView {
             focused: matches!(self.focus, Focus::List),
             title: format!(
                 " Device {} ({}) ",
-                connection.peripheral.name,
-                connection.peripheral.ble_peripheral.address()
+                connection.peripheral.name, connection.peripheral.address
             ),
             ..Default::default()
         }));
