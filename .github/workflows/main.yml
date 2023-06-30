@@ -224,12 +224,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish cargo package
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CARGO_TOKEN }}
-
   publish:
     name: Publish cargo package
     needs: [deploy]
@@ -250,6 +244,7 @@ jobs:
         with:
           prefix-key: "v0-release-rust"
           cache-on-failure: true
+
       - name: Publish cargo package
         uses: actions-rs/cargo@v1
         with:
