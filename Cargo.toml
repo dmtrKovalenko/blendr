@@ -7,7 +7,7 @@ license = "BSD-3-Clause"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
 
 [[bin]]
-name = "diesel"
+name = "blendr"
 path = "src/main.rs"
 doc = false
 
