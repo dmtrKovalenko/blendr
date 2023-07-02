@@ -5,6 +5,7 @@ edition = "2021"
 description = "The hacker's BLE (bluetooth low energy) browser terminal app"
 license = "BSD-3-Clause"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
+repository = "https://github.com/dmtrKovalenko/blendr"
 
 [[bin]]
 name = "blendr"
