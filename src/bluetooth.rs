@@ -1,6 +1,8 @@
 use crate::error::{Error, Result};
+use crate::tui::ui::StableListItem;
 use crate::Ctx;
 use btleplug::api::{BDAddr, Central, CharPropFlags, Manager as _, Peripheral, ScanFilter};
+use btleplug::platform::PeripheralId;
 use futures::future::try_join_all;
 use std::borrow::Cow;
 use std::iter::Iterator;
@@ -47,6 +49,12 @@ pub struct HandledPeripheral<TPer: Peripheral = btleplug::platform::Peripheral> 
     pub services_names: Vec<Cow<'static, str>>,
 }
 
+impl StableListItem<PeripheralId> for HandledPeripheral {
+    fn id(&self) -> PeripheralId {
+        self.ble_peripheral.id()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ConnectedCharacteristic {
     pub ble_characteristic: btleplug::api::Characteristic,
@@ -57,6 +65,12 @@ pub struct ConnectedCharacteristic {
     pub custom_service_name: Option<String>,
     pub uuid: uuid::Uuid,
     pub service_uuid: uuid::Uuid,
+}
+
+impl StableListItem<uuid::Uuid> for ConnectedCharacteristic {
+    fn id(&self) -> uuid::Uuid {
+        self.uuid
+    }
 }
 
 impl ConnectedCharacteristic {
@@ -98,33 +112,34 @@ pub struct ConnectedPeripheral {
 impl ConnectedPeripheral {
     pub fn new(ctx: &Ctx, peripheral: HandledPeripheral) -> Self {
         let chars = peripheral.ble_peripheral.characteristics();
+        let characteristics = chars
+            .into_iter()
+            .map(|char| ConnectedCharacteristic {
+                custom_char_name: ctx
+                    .args
+                    .names_map_file
+                    .as_ref()
+                    .and_then(|names| names.get(&char.uuid).cloned()),
+                custom_service_name: ctx
+                    .args
+                    .names_map_file
+                    .as_ref()
+                    .and_then(|names| names.get(&char.uuid).cloned()),
+                standard_gatt_char_name: ble_default_services::SPECIAL_CHARACTERISTICS_NAMES
+                    .get(&char.uuid)
+                    .copied(),
+                standard_gatt_service_name: ble_default_services::SPECIAL_SERVICES_NAMES
+                    .get(&char.service_uuid)
+                    .copied(),
+                uuid: char.uuid,
+                service_uuid: char.service_uuid,
+                ble_characteristic: char,
+            })
+            .collect();
 
         Self {
             peripheral,
-            characteristics: chars
-                .into_iter()
-                .map(|char| ConnectedCharacteristic {
-                    custom_char_name: ctx
-                        .args
-                        .names_map_file
-                        .as_ref()
-                        .and_then(|names| names.get(&char.uuid).cloned()),
-                    custom_service_name: ctx
-                        .args
-                        .names_map_file
-                        .as_ref()
-                        .and_then(|names| names.get(&char.uuid).cloned()),
-                    standard_gatt_char_name: ble_default_services::SPECIAL_CHARACTERISTICS_NAMES
-                        .get(&char.uuid)
-                        .copied(),
-                    standard_gatt_service_name: ble_default_services::SPECIAL_SERVICES_NAMES
-                        .get(&char.service_uuid)
-                        .copied(),
-                    uuid: char.uuid,
-                    service_uuid: char.service_uuid,
-                    ble_characteristic: char,
-                })
-                .collect(),
+            characteristics,
         }
     }
 }
