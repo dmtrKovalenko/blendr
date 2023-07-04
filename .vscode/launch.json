@@ -9,7 +9,7 @@
       "request": "launch",
       "name": "Debug",
       "program": "${workspaceFolder}/target/debug/blendr",
-      "args": ["--device", "CO2"],
+      "args": [],
       "cwd": "${workspaceFolder}"
     }
   ]

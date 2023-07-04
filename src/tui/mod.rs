@@ -2,8 +2,9 @@ mod connection_view;
 mod error_popup;
 mod peripheral_list;
 mod peripheral_view;
-mod ui;
+pub mod ui;
 mod welcome;
+
 use crate::{
     error::Result,
     route::Route,
