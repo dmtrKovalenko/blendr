@@ -32,6 +32,12 @@ jobs:
           command: fmt
           args: --all -- --check
 
+      - name: cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
   test:
     name: Test
     needs: [style]
