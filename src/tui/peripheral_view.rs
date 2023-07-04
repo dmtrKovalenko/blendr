@@ -1,4 +1,3 @@
-use btleplug::api::Peripheral;
 use crossterm::event::KeyCode;
 use regex::Regex;
 use tui::{
