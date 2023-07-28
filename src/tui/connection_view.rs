@@ -23,8 +23,8 @@ pub struct ConnectionView {
     ctx: Arc<Ctx>,
     float_numbers: bool,
     unsigned_numbers: bool,
-    highlight_copy_char_stack: u8,
-    highlight_copy_service_stack: u8,
+    highlight_copy_char_renders_delay_stack: u8,
+    highlight_copy_service_renders_delay_stack: u8,
     clipboard: Option<ClipboardContext>,
 }
 
@@ -61,8 +61,8 @@ impl AppRoute for ConnectionView {
             ctx,
             float_numbers: false,
             unsigned_numbers: false,
-            highlight_copy_char_stack: 0,
-            highlight_copy_service_stack: 0,
+            highlight_copy_char_renders_delay_stack: 0,
+            highlight_copy_service_renders_delay_stack: 0,
             clipboard: ClipboardContext::new().ok(),
         }
     }
@@ -86,11 +86,11 @@ impl AppRoute for ConnectionView {
             (Route::CharacteristicView { characteristic, .. }, Some(clipboard)) => match key.code {
                 KeyCode::Char('c') => {
                     let _ = clipboard.set_contents(characteristic.uuid.to_string());
-                    self.highlight_copy_char_stack = 4;
+                    self.highlight_copy_char_renders_delay_stack = 4;
                 }
                 KeyCode::Char('s') => {
                     let _ = clipboard.set_contents(characteristic.service_uuid.to_string());
-                    self.highlight_copy_service_stack = 4;
+                    self.highlight_copy_service_renders_delay_stack = 4;
                 }
                 _ => (),
             },
@@ -173,7 +173,7 @@ impl AppRoute for ConnectionView {
                 let mut writer = std::io::Cursor::new(&mut hexyl_output_buf);
                 let mut printer = hexyl::PrinterBuilder::new(&mut writer)
                     .show_color(true)
-                    .num_panels(if area.width > 60 { 2 } else { 1 })
+                    .num_panels(if area.width > 70 { 2 } else { 1 })
                     .with_border_style(hexyl::BorderStyle::Unicode)
                     .build();
 
@@ -181,8 +181,14 @@ impl AppRoute for ConnectionView {
             }
 
             use ansi_to_tui::IntoText;
-            let a = hexyl_output_buf.into_text().unwrap().into_iter();
-            text.extend(a);
+            if let Ok(output) = hexyl_output_buf.into_text() {
+                text.extend(output.into_iter());
+            } else {
+                tracing::error!(
+                    ?hexyl_output_buf,
+                    "Failed to parse and display hexyl output"
+                );
+            }
         } else {
             text.push(Line::from("No value received yet"));
         }
@@ -223,14 +229,14 @@ impl AppRoute for ConnectionView {
                         (
                             "c",
                             "Copy characteristic UUID",
-                            self.highlight_copy_char_stack > 0,
+                            self.highlight_copy_char_renders_delay_stack > 0,
                         )
                     }),
                     self.clipboard.as_ref().map(|_| {
                         (
                             "s",
                             "Copy services UUID",
-                            self.highlight_copy_service_stack > 0,
+                            self.highlight_copy_service_renders_delay_stack > 0,
                         )
                     }),
                 ]),
@@ -238,12 +244,12 @@ impl AppRoute for ConnectionView {
             );
         }
 
-        if self.highlight_copy_char_stack > 0 {
-            self.highlight_copy_char_stack -= 1;
+        if self.highlight_copy_char_renders_delay_stack > 0 {
+            self.highlight_copy_char_renders_delay_stack -= 1;
         }
 
-        if self.highlight_copy_service_stack > 0 {
-            self.highlight_copy_service_stack -= 1;
+        if self.highlight_copy_service_renders_delay_stack > 0 {
+            self.highlight_copy_service_renders_delay_stack -= 1;
         }
 
         Ok(())
