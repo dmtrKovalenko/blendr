@@ -134,7 +134,7 @@ checksum = "6dbe3c979c178231552ecba20214a8272df4e09f232a87aef4320cf06539aded"
 
 [[package]]
 name = "blendr"
-version = "1.0.1"
+version = "1.1.1"
 dependencies = [
  "ansi-to-tui",
  "btleplug",
