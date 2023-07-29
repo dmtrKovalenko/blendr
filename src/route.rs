@@ -6,7 +6,10 @@ use crate::{
 use btleplug::api::Peripheral;
 use std::{
     ops::{Deref, DerefMut},
-    sync::{atomic::AtomicU16, Arc, RwLock},
+    sync::{
+        atomic::{AtomicIsize, AtomicU16},
+        Arc, RwLock,
+    },
     time::Duration,
 };
 use tokio::time::{self, timeout};
@@ -19,6 +22,46 @@ pub struct CharacteristicValue {
     pub data: Vec<u8>,
 }
 
+/// Atomic implementation for optional index
+#[derive(Debug)]
+pub struct AtomicOptionalIndex(AtomicIsize);
+
+impl Default for AtomicOptionalIndex {
+    fn default() -> Self {
+        Self(AtomicIsize::new(-1))
+    }
+}
+
+impl AtomicOptionalIndex {
+    pub fn read(&self) -> Option<usize> {
+        let value = self.0.load(std::sync::atomic::Ordering::SeqCst);
+
+        if value < 0 {
+            None
+        } else {
+            Some(value as usize)
+        }
+    }
+
+    pub fn write(&self, value: usize) {
+        let new_value: isize = if let Ok(new_value) = value.try_into() {
+            new_value
+        } else {
+            tracing::error!(
+                "Failed to convert atomic optional index. Falling back to the isize max"
+            );
+
+            isize::MAX
+        };
+
+        self.0.store(new_value, std::sync::atomic::Ordering::SeqCst)
+    }
+
+    pub fn annulate(&self) {
+        self.0.store(-1, std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Route {
     PeripheralList,
@@ -27,10 +70,14 @@ pub enum Route {
         peripheral: HandledPeripheral,
         retry: Arc<AtomicU16>,
     },
+    // todo pull out into separate struct with default impl
     CharacteristicView {
         peripheral: ConnectedPeripheral,
         characteristic: ConnectedCharacteristic,
-        value: Arc<RwLock<Option<CharacteristicValue>>>,
+        /// If index is negative should show the latest mode,
+        /// can't use option here cause it will require additional mutex lock around while we can use simple atomic here
+        historical_view_index: Arc<AtomicOptionalIndex>,
+        history: Arc<RwLock<Vec<CharacteristicValue>>>,
     },
 }
 
@@ -74,7 +121,8 @@ impl Route {
                 Route::CharacteristicView {
                     peripheral,
                     characteristic,
-                    value,
+                    history,
+                    ..
                 },
             ) => loop {
                 let ble_peripheral = &peripheral.peripheral.ble_peripheral;
@@ -82,7 +130,7 @@ impl Route {
                     .read(&characteristic.ble_characteristic)
                     .await
                 {
-                    value.write().unwrap().replace(CharacteristicValue {
+                    history.write().unwrap().push(CharacteristicValue {
                         time: chrono::Local::now(),
                         data,
                     });

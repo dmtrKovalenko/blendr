@@ -1,6 +1,6 @@
 use crate::{
     error,
-    tui::{ui::BlendrBlock, AppRoute, TerminalBackend},
+    tui::{ui::BlendrBlock, AppRoute, HandleKeydownResult, TerminalBackend},
     Ctx,
 };
 use crossterm::event::KeyCode;
@@ -51,18 +51,19 @@ impl AppRoute for ErrorView {
         ErrorView { ctx }
     }
 
-    fn handle_input(&mut self, key: &crossterm::event::KeyEvent) {
+    fn handle_input(&mut self, key: &crossterm::event::KeyEvent) -> HandleKeydownResult {
         // unwrap here because we are already in error state and if can not get out of it – it means a super serious race condition
         let mut global_error_lock = self.ctx.global_error.lock().unwrap();
         if global_error_lock.deref().is_none() {
-            return;
+            return HandleKeydownResult::Errored;
         }
 
         match key.code {
             KeyCode::Esc | KeyCode::Enter | KeyCode::Tab | KeyCode::Char(' ') => {
-                *global_error_lock.deref_mut() = None
+                *global_error_lock.deref_mut() = None;
+                HandleKeydownResult::Handled
             }
-            _ => {}
+            _ => HandleKeydownResult::Continue,
         }
     }
 
@@ -88,6 +89,7 @@ impl AppRoute for ErrorView {
                 route_active: true,
                 title: "Error",
                 color: Some(tui::style::Color::Red),
+                ..Default::default()
             }),
         );
 

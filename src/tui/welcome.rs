@@ -4,7 +4,7 @@ use tui::{
     widgets::{Block, Borders, Paragraph, Wrap},
 };
 
-use crate::tui::{AppRoute, TerminalBackend};
+use crate::tui::{AppRoute, HandleKeydownResult, TerminalBackend};
 
 pub struct WelcomeBlock {}
 
@@ -92,7 +92,9 @@ impl AppRoute for WelcomeBlock {
         Self {}
     }
 
-    fn handle_input(&mut self, _key: &crossterm::event::KeyEvent) {}
+    fn handle_input(&mut self, _key: &crossterm::event::KeyEvent) -> HandleKeydownResult {
+        HandleKeydownResult::Continue
+    }
 
     fn render(
         &mut self,

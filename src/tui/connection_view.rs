@@ -1,9 +1,12 @@
 use crate::{
-    bluetooth::display_properties,
-    route::Route,
+    bluetooth::ConnectedCharacteristic,
+    route::{CharacteristicValue, Route},
     tui::{
-        ui::{block, BlendrBlock},
-        AppRoute,
+        ui::{
+            block::{self, Title},
+            BlendrBlock,
+        },
+        AppRoute, HandleKeydownResult,
     },
     Ctx,
 };
@@ -52,6 +55,54 @@ fn try_parse_numeric_value<T: ByteOrder>(
     })
 }
 
+fn render_title_with_navigation_controls(
+    area: &tui::layout::Rect,
+    char: &ConnectedCharacteristic,
+    historical_view_index: Option<usize>,
+    history: &[CharacteristicValue],
+) -> Title<'static> {
+    const PREVIOUS_BUTTON: &str = " [<- Previous]  ";
+    const PREVIOUS_BUTTON_DENSE: &str = " [<-]  ";
+    const NEXT_BUTTON: &str = "  [Next ->] ";
+    const NEXT_BUTTON_DENSE: &str = "  [->] ";
+
+    let mut spans = vec![];
+    let available_width = area.width - 2; // 2 chars for borders on the left and right
+    let base_title = format!(
+        "Characteristic {} / Service {}",
+        char.char_name(),
+        char.service_name()
+    );
+
+    let previous_button_style = if history.len() < 2 || historical_view_index == Some(0) {
+        Style::default().fg(Color::DarkGray)
+    } else {
+        Style::default()
+    };
+
+    let next_button_style = if history.len() < 2 || historical_view_index.is_none() {
+        Style::default().fg(Color::DarkGray)
+    } else {
+        Style::default()
+    };
+
+    let not_enough_space = (available_width as i32).saturating_sub(
+        PREVIOUS_BUTTON.len() as i32 + NEXT_BUTTON.len() as i32 + base_title.len() as i32,
+    ) < 0;
+
+    if not_enough_space {
+        spans.push(Span::styled(PREVIOUS_BUTTON_DENSE, previous_button_style));
+        spans.push(Span::raw(format!("Char. {}", char.char_name())));
+        spans.push(Span::styled(NEXT_BUTTON_DENSE, next_button_style));
+    } else {
+        spans.push(Span::styled(PREVIOUS_BUTTON, previous_button_style));
+        spans.push(Span::raw(base_title));
+        spans.push(Span::styled(NEXT_BUTTON, next_button_style));
+    }
+
+    Title::new(spans)
+}
+
 impl AppRoute for ConnectionView {
     fn new(ctx: std::sync::Arc<crate::Ctx>) -> Self
     where
@@ -67,20 +118,62 @@ impl AppRoute for ConnectionView {
         }
     }
 
-    fn handle_input(&mut self, key: &crossterm::event::KeyEvent) {
+    fn handle_input(&mut self, key: &crossterm::event::KeyEvent) -> HandleKeydownResult {
         match key.code {
             KeyCode::Char('f') => {
                 self.float_numbers = !self.float_numbers;
-                return;
+                return HandleKeydownResult::Handled;
             }
             KeyCode::Char('u') => {
                 self.unsigned_numbers = !self.unsigned_numbers;
-                return;
+                return HandleKeydownResult::Handled;
             }
             _ => (),
         }
 
         let active_route = self.ctx.get_active_route();
+
+        if let Route::CharacteristicView {
+            historical_view_index,
+            history,
+            ..
+        } = active_route.deref()
+        {
+            let update_index = |new_index| {
+                historical_view_index.write(new_index);
+            };
+
+            match (
+                key.code,
+                history.read().ok().as_ref(),
+                historical_view_index.deref().read(),
+            ) {
+                (KeyCode::Left, _, Some(current_historical_index)) => {
+                    if current_historical_index >= 1 {
+                        update_index(current_historical_index - 1);
+                    }
+                }
+                (KeyCode::Left, Some(history), None) => {
+                    update_index(history.len() - 1);
+                }
+                (KeyCode::Right, Some(history), Some(current_historical_index))
+                    if current_historical_index == history.len() - 2 =>
+                {
+                    historical_view_index.annulate();
+                }
+                (KeyCode::Right, Some(history), Some(current_historical_index)) => {
+                    if history.len() > current_historical_index {
+                        update_index(current_historical_index + 1);
+                    }
+                }
+                _ => (),
+            }
+
+            if matches!(key.code, KeyCode::Left | KeyCode::Right) {
+                // on this view we always handing arrows as history navigation and preventing other view's actions
+                return HandleKeydownResult::Handled;
+            }
+        }
 
         match (active_route.deref(), self.clipboard.as_mut()) {
             (Route::CharacteristicView { characteristic, .. }, Some(clipboard)) => match key.code {
@@ -96,6 +189,8 @@ impl AppRoute for ConnectionView {
             },
             _ => (),
         }
+
+        HandleKeydownResult::Continue
     }
 
     fn render(
@@ -105,35 +200,47 @@ impl AppRoute for ConnectionView {
         f: &mut tui::Frame<super::TerminalBackend>,
     ) -> crate::error::Result<()> {
         let active_route = self.ctx.active_route.read()?;
-        let (_, characteristic, value) = if let Route::CharacteristicView {
-            peripheral,
-            characteristic,
-            value,
-        } = active_route.deref()
-        {
-            (peripheral, characteristic, value)
-        } else {
-            tracing::error!(
-                "ConnectionView::render called when active route is not CharacteristicView"
-            );
+        let (_, characteristic, history, historical_view_index) =
+            if let Route::CharacteristicView {
+                peripheral,
+                characteristic,
+                history,
+                historical_view_index,
+            } = active_route.deref()
+            {
+                (peripheral, characteristic, history, historical_view_index)
+            } else {
+                tracing::error!(
+                    "ConnectionView::render called when active route is not CharacteristicView"
+                );
 
-            return Ok(());
+                return Ok(());
+            };
+
+        let history = history.read()?;
+        let historical_index = historical_view_index.deref().read();
+
+        let active_value = match historical_index {
+            Some(index) => history.get(index),
+            None => history.last(),
         };
 
         let mut text = vec![];
-        text.push(Line::from(""));
-
-        text.push(Line::from(format!(
-            "Properties: {}",
-            display_properties(characteristic.ble_characteristic.properties)
-        )));
-
-        if let Some(value) = value.read().unwrap().as_ref() {
+        if let Some(value) = active_value.as_ref() {
             text.push(Line::from(""));
 
             text.push(Line::from(format!(
-                "Last updated: {}",
-                value.time.format("%Y-%m-%d %H:%M:%S")
+                "{label}: {}",
+                value.time.format("%Y-%m-%d %H:%M:%S"),
+                label = if let Some(index) = historical_index {
+                    format!(
+                        "Historical data ({} of {}) viewing data of\n",
+                        index + 1,
+                        history.len()
+                    )
+                } else {
+                    "Latest value received".to_owned()
+                },
             )));
 
             text.push(Line::from(""));
@@ -210,10 +317,12 @@ impl AppRoute for ConnectionView {
                 .block(tui::widgets::Block::from(BlendrBlock {
                     route_active,
                     focused: route_active,
-                    title: format!(
-                        "Characteristic {} / Service {}",
-                        characteristic.char_name(),
-                        characteristic.service_name()
+                    title_alignment: tui::layout::Alignment::Center,
+                    title: render_title_with_navigation_controls(
+                        &area,
+                        characteristic,
+                        historical_index,
+                        &history,
                     ),
                     ..Default::default()
                 }));
@@ -222,6 +331,8 @@ impl AppRoute for ConnectionView {
         if chunks[1].height > 0 {
             f.render_widget(
                 block::render_help([
+                    Some(("<-", "Previous value", false)),
+                    Some(("->", "Next value", false)),
                     Some(("d", "Disconnect from device", false)),
                     Some(("u", "Parse numeric as unsigned", self.unsigned_numbers)),
                     Some(("f", "Parse numeric as floats", self.float_numbers)),
