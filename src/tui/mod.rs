@@ -108,11 +108,18 @@ impl App {
 
 pub type TerminalBackend = CrosstermBackend<Stdout>;
 
+#[derive(Debug, PartialEq)]
+pub enum HandleKeydownResult {
+    Handled,
+    Errored,
+    Continue,
+}
+
 trait AppRoute {
     fn new(ctx: Arc<Ctx>) -> Self
     where
         Self: Sized;
-    fn handle_input(&mut self, key: &KeyEvent);
+    fn handle_input(&mut self, key: &KeyEvent) -> HandleKeydownResult;
     fn render(&mut self, area: Rect, is_active: bool, f: &mut Frame<TerminalBackend>)
         -> Result<()>;
 }
@@ -187,12 +194,18 @@ fn tui_loop(
                     _ => {}
                 }
 
-                app.get_active_blocks(terminal.size()?.width)
+                for block in app
+                    .get_active_blocks(terminal.size()?.width)
                     .into_iter()
+                    .rev()
                     .filter(|block| matches!(block, BlockVariant::Primary(_)))
-                    .for_each(|block| {
-                        block.into_inner().handle_input(&key);
-                    });
+                {
+                    let handle_result = block.into_inner().handle_input(&key);
+                    // can't use find cause it it is not giving the ownership required for handle_input
+                    if handle_result == HandleKeydownResult::Handled {
+                        break;
+                    }
+                }
 
                 app.error_view.handle_input(&key);
             }

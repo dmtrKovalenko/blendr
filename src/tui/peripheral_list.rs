@@ -2,7 +2,7 @@ use crate::bluetooth::{BleScan, HandledPeripheral};
 use crate::error::Result;
 use crate::tui::ui::{block, list::StableListState, search_input, BlendrBlock, ShouldUpdate};
 use crate::tui::ui::{HandleInputResult, StableIndexList};
-use crate::tui::AppRoute;
+use crate::tui::{AppRoute, HandleKeydownResult};
 use crate::{route::Route, Ctx};
 use btleplug::platform::PeripheralId;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -83,7 +83,7 @@ impl AppRoute for PeripheralList {
         }
     }
 
-    fn handle_input(&mut self, key: &KeyEvent) {
+    fn handle_input(&mut self, key: &KeyEvent) -> HandleKeydownResult {
         let last_search = self.search.clone();
 
         if let Ok(Some(BleScan { peripherals, .. })) = &self.ctx.latest_scan.read().as_deref() {
@@ -150,6 +150,8 @@ impl AppRoute for PeripheralList {
         {
             self.search_regex = new_regex;
         }
+
+        HandleKeydownResult::Continue
     }
 
     fn render(
@@ -244,11 +246,12 @@ impl AppRoute for PeripheralList {
             .collect();
 
         // Create a List from all list items and highlight the currently selected one
+        let title = format!("Latest Scan on {}", sync_time.format("%H:%M:%S"));
         let items = List::new(items)
             .block(tui::widgets::Block::from(BlendrBlock {
                 route_active,
                 focused: matches!(self.focus, Focus::List),
-                title: format!("Latest Scan on {}", sync_time.format("%H:%M:%S")).as_str(),
+                title: title.as_str(),
                 ..Default::default()
             }))
             .highlight_style(

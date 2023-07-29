@@ -11,12 +11,15 @@ use uuid::Uuid;
 use crate::{
     bluetooth::{display_properties, ConnectedCharacteristic},
     route::Route,
-    tui::ui::{
-        block::{self, BlendrBlock},
-        list::{HandleInputResult, StableListState},
-        search_input::{self, ShouldUpdate},
-    },
     tui::AppRoute,
+    tui::{
+        ui::{
+            block::{self, BlendrBlock},
+            list::{HandleInputResult, StableListState},
+            search_input::{self, ShouldUpdate},
+        },
+        HandleKeydownResult,
+    },
     Ctx,
 };
 use std::{
@@ -101,7 +104,7 @@ impl AppRoute for PeripheralView {
         }
     }
 
-    fn handle_input(&mut self, key: &crossterm::event::KeyEvent) {
+    fn handle_input(&mut self, key: &crossterm::event::KeyEvent) -> HandleKeydownResult {
         let last_search = self.search.clone();
         let active_route = self.ctx.get_active_route();
 
@@ -147,7 +150,7 @@ impl AppRoute for PeripheralView {
                             KeyCode::Left | KeyCode::Char('d') => {
                                 drop(active_route);
                                 Route::PeripheralList.navigate(&self.ctx);
-                                return;
+                                return HandleKeydownResult::Handled;
                             }
                             _ => {}
                         }
@@ -163,7 +166,8 @@ impl AppRoute for PeripheralView {
                             Route::CharacteristicView {
                                 characteristic: char_clone,
                                 peripheral: peripheral_clone,
-                                value: Arc::new(RwLock::new(None)),
+                                history: Arc::new(RwLock::new(vec![])),
+                                historical_view_index: Default::default(),
                             }
                             .navigate(&self.ctx);
                         }
@@ -179,6 +183,8 @@ impl AppRoute for PeripheralView {
         {
             self.search_regex = new_regex;
         }
+
+        HandleKeydownResult::Continue
     }
 
     fn render(
@@ -355,7 +361,8 @@ impl AppRoute for PeripheralView {
             Route::CharacteristicView {
                 characteristic,
                 peripheral,
-                value: Arc::new(RwLock::new(None)),
+                history: Arc::new(RwLock::new(vec![])),
+                historical_view_index: Default::default(),
             }
             .navigate(&self.ctx);
             self.first_match_done = true

@@ -5,17 +5,51 @@ use tui::{
 };
 
 #[derive(Debug, Default)]
-pub struct BlendrBlock<T: std::fmt::Display> {
+pub struct Title<'a>(Vec<Span<'a>>);
+
+impl<'a> Title<'a> {
+    pub fn new(vec: Vec<impl Into<Span<'a>>>) -> Self {
+        Self(vec.into_iter().map(Into::into).collect())
+    }
+}
+
+impl<'a, T: Into<Span<'a>>> From<T> for Title<'a> {
+    fn from(title: T) -> Self {
+        Self(vec![Span::from(" "), title.into(), Span::from(" ")])
+    }
+}
+
+#[derive(Debug)]
+pub struct BlendrBlock<'a, T: Into<Title<'a>> + Default> {
     pub focused: bool,
     pub title: T,
     pub route_active: bool,
     pub color: Option<Color>,
+    pub title_alignment: tui::layout::Alignment,
+    pub phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'a, Title: std::fmt::Display> From<BlendrBlock<Title>> for tui::widgets::Block<'a> {
-    fn from(block: BlendrBlock<Title>) -> Self {
+impl<'a, T: Into<Title<'a>> + Default> Default for BlendrBlock<'a, T> {
+    fn default() -> Self {
+        Self {
+            focused: Default::default(),
+            title: T::default(),
+            route_active: Default::default(),
+            color: Default::default(),
+            title_alignment: tui::layout::Alignment::Left,
+            phantom: Default::default(),
+        }
+    }
+}
+
+impl<'a, TTitle: Into<Title<'a>> + Default> From<BlendrBlock<'a, TTitle>>
+    for tui::widgets::Block<'a>
+{
+    fn from(block: BlendrBlock<'a, TTitle>) -> Self {
+        let title: Title = block.title.into();
         tui::widgets::Block::default()
-            .title(format!(" {} ", block.title))
+            .title(Line::from(title.0))
+            .title_alignment(block.title_alignment)
             .border_style(if block.route_active && block.focused {
                 Style::default()
                     .fg(block.color.unwrap_or(tui::style::Color::LightBlue))
