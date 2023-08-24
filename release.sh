@@ -2,6 +2,7 @@
 
 VERSION="$1"
 
+cargo install cargo-edit
 cargo set-version "$VERSION"
 
 git add Cargo.toml Cargo.lock
