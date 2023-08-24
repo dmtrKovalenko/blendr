@@ -156,6 +156,7 @@ impl AppRoute for ConnectionView {
                 (KeyCode::Left, Some(history), None) => {
                     update_index(history.len() - 1);
                 }
+                (KeyCode::Char('l'), _, _) => historical_view_index.annulate(),
                 (KeyCode::Right, Some(history), Some(current_historical_index))
                     if current_historical_index == history.len() - 2 =>
                 {
@@ -333,20 +334,27 @@ impl AppRoute for ConnectionView {
                 block::render_help([
                     Some(("<-", "Previous value", false)),
                     Some(("->", "Next value", false)),
-                    Some(("d", "Disconnect from device", false)),
-                    Some(("u", "Parse numeric as unsigned", self.unsigned_numbers)),
-                    Some(("f", "Parse numeric as floats", self.float_numbers)),
+                    Some(("d", "[D]isconnect from device", false)),
+                    Some(("u", "Parse numeric as [u]nsigned", self.unsigned_numbers)),
+                    Some(("f", "Parse numeric as [f]loats", self.float_numbers)),
+                    historical_index.map(|_| {
+                        (
+                            "l",
+                            "Go to the [l]atest values",
+                            self.highlight_copy_char_renders_delay_stack > 0,
+                        )
+                    }),
                     self.clipboard.as_ref().map(|_| {
                         (
                             "c",
-                            "Copy characteristic UUID",
+                            "Copy [c]haracteristic UUID",
                             self.highlight_copy_char_renders_delay_stack > 0,
                         )
                     }),
                     self.clipboard.as_ref().map(|_| {
                         (
                             "s",
-                            "Copy services UUID",
+                            "Copy [s]ervice UUID",
                             self.highlight_copy_service_renders_delay_stack > 0,
                         )
                     }),
