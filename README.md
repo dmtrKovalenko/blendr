@@ -36,7 +36,7 @@ And it's just perfect to hack your neighbor's toothbrush 😉
 Cargo cli
 
 ```
-cargo install blendr
+cargo install blendr --locked
 ```
 
 For Unix OS you can run the following, it will install the binary for your system and provide man reference.
