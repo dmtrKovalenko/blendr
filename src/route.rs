@@ -74,8 +74,6 @@ pub enum Route {
     CharacteristicView {
         peripheral: ConnectedPeripheral,
         characteristic: ConnectedCharacteristic,
-        /// If index is negative should show the latest mode,
-        /// can't use option here cause it will require additional mutex lock around while we can use simple atomic here
         historical_view_index: Arc<AtomicOptionalIndex>,
         history: Arc<RwLock<Vec<CharacteristicValue>>>,
     },
