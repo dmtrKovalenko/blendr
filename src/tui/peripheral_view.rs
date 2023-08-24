@@ -292,6 +292,7 @@ impl AppRoute for PeripheralView {
                     .then(|| {
                         Style::default()
                             .bg(Color::LightBlue)
+                            .fg(Color::Black)
                             .add_modifier(Modifier::BOLD)
                     })
                     .unwrap_or_default();
@@ -300,16 +301,13 @@ impl AppRoute for PeripheralView {
                 let mut char_line = Line::from(vec![
                     Span::styled(if is_highlighted { ">" } else { "•" }, base_style),
                     Span::styled("  ", base_style),
-                    Span::styled(
-                        char_name,
-                        base_style.add_modifier(Modifier::BOLD).fg(Color::White),
-                    ),
+                    Span::styled(char_name, base_style.add_modifier(Modifier::BOLD)),
                     Span::styled(
                         format!(
                             " [{}]",
                             display_properties(char.ble_characteristic.properties)
                         ),
-                        base_style,
+                        base_style.fg(Color::Gray),
                     ),
                 ]);
 
