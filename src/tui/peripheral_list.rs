@@ -256,7 +256,8 @@ impl AppRoute for PeripheralList {
             }))
             .highlight_style(
                 Style::default()
-                    .bg(Color::LightBlue)
+                    .bg(Color::Blue)
+                    .fg(Color::Black)
                     .add_modifier(Modifier::BOLD),
             );
 

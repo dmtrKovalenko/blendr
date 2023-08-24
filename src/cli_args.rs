@@ -23,9 +23,8 @@ fn parse_name_map(path: &str) -> Result<HashMap<uuid::Uuid, String>, clap::Error
                     .collect::<Vec<_>>()
                     .try_into()
                     .map_err(|_| {
-                        clap::Error::raw(
                             clap::error::ErrorKind::InvalidValue,
-                            format!("Failed to parse line {i} from file {}: Missing = in the line. Names ini file supports very simple key-value pairs format where first value is uuid of service or characteristic and the second is the name.\n\ne.g. 0000FFE0-0000-1000-8000-00805F9B34FB=Cpu Tempreture", path.display()),
+                            format!("Failed to parse line {i} from file {}: Missing desired structure UUID=NAME.\nNames map file supports very simple key-value pairs format where first value is uuid of service or characteristic and the second is the name.\n\ne.g. 0000FFE0-0000-1000-8000-00805F9B34FB=Cpu Tempreture", path.display()),
                         )
                     })?;
 
