@@ -47,11 +47,9 @@ curl --proto '=https' --tlsv1.2 -sLSf "https://github.com/dmtrKovalenko/blendr/b
 
 For windows, it is required to download and run binary executable directly. Open [latest release](https://github.com/dmtrKovalenko/blendr/releases/latest) page and download binary executable for your OS
 
-## Prerequisits 
+### MacOS Permissions
 
-### MacOS
-
-To use Bluetooth on MacOS Big Sur (11) or later, you need to either package your binary into an application bundle with an Info.plist including NSBluetoothAlwaysUsageDescription, or (for a command-line application such as the examples included with btleplug) enable the Bluetooth permission for your terminal. You can do the latter by going to System Preferences → Security & Privacy → Privacy → Bluetooth, clicking the '+' button, and selecting 'Terminal' (or iTerm or whichever terminal application you use).
+To use Bluetooth on MacOS Big Sur (11) or later, you need to enable the Bluetooth permission for your terminal. You can do the latter by going to System Preferences → Security & Privacy → Privacy → Bluetooth, clicking the '+' button, and selecting 'Terminal' (or iTerm or whichever terminal emulator app you use).
 
 <p align="center">
   <img alt="Bluetooth settings screenshot" src="./bluetooth-macos.png" />
