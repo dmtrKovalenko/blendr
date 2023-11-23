@@ -170,7 +170,7 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
             .map(Peripheral::properties)
             .collect::<Vec<_>>();
 
-        let peripherals = try_join_all(properties_futures)
+        let mut peripherals = try_join_all(properties_futures)
             .await?
             .into_iter()
             .zip(peripherals.into_iter())
@@ -214,6 +214,8 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
                 })
             })
             .collect::<Vec<_>>();
+
+        peripherals.sort_by(|p1, p2| (&p1.name, p1.address).cmp(&(&p2.name, p2.address)));
 
         context.latest_scan.write()?.replace(BleScan {
             peripherals,
