@@ -104,6 +104,7 @@ impl Route {
                     retry.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 }
 
+                peripheral.ble_peripheral.discover_services().await?;
                 let mut active_route = ctx.active_route.write().unwrap();
                 (*active_route) =
                     Route::PeripheralConnectedView(ConnectedPeripheral::new(ctx, peripheral))
