@@ -37,6 +37,7 @@ impl Ctx {
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
+    let sort_by_name = args.sort_by_name;
     let ctx = Arc::new(Ctx {
         args,
         latest_scan: RwLock::new(None),
@@ -47,7 +48,7 @@ async fn main() {
             .expect("Can not establish BLE connection."),
         request_scan_restart: Mutex::new(false),
         global_error: Mutex::new(None),
-        sort_by_name: Mutex::new(false),
+        sort_by_name: Mutex::new(sort_by_name),
     });
 
     let ctx_clone = Arc::clone(&ctx);

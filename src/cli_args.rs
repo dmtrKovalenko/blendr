@@ -109,4 +109,8 @@ pub struct Args {
     /// ```
     #[clap(long, value_parser = clap::builder::ValueParser::new(parse_name_map))]
     pub names_map_file: Option<HashMap<uuid::Uuid, String>>,
+
+    /// Sort peripherals by name
+    #[clap(long)]
+    pub sort_by_name: bool,
 }
