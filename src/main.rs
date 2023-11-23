@@ -21,6 +21,7 @@ pub struct Ctx {
     active_side_effect_handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
     request_scan_restart: Mutex<bool>,
     global_error: Mutex<Option<crate::error::Error>>,
+    sort_by_name: Mutex<bool>,
 }
 
 impl Ctx {
@@ -46,6 +47,7 @@ async fn main() {
             .expect("Can not establish BLE connection."),
         request_scan_restart: Mutex::new(false),
         global_error: Mutex::new(None),
+        sort_by_name: Mutex::new(false),
     });
 
     let ctx_clone = Arc::clone(&ctx);

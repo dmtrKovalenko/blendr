@@ -215,7 +215,9 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
             })
             .collect::<Vec<_>>();
 
-        peripherals.sort_by(|p1, p2| (&p1.name, p1.address).cmp(&(&p2.name, p2.address)));
+        if *context.sort_by_name.lock().unwrap() {
+            peripherals.sort_by(|p1, p2| (&p1.name, p1.address).cmp(&(&p2.name, p2.address)));
+        }
 
         context.latest_scan.write()?.replace(BleScan {
             peripherals,

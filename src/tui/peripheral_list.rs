@@ -139,6 +139,10 @@ impl AppRoute for PeripheralList {
                             }
                         }
                         KeyCode::Char('u') => self.to_remove_unknowns = !self.to_remove_unknowns,
+                        KeyCode::Char('s') => {
+                            let mut sort_by_name = self.ctx.sort_by_name.lock().unwrap();
+                            *sort_by_name = !*sort_by_name;
+                        }
                         _ => {}
                     }
                 }
@@ -270,6 +274,7 @@ impl AppRoute for PeripheralList {
                     Some(("u", "Hide unknown devices", self.to_remove_unknowns)),
                     Some(("->", "Connect to device", false)),
                     Some(("r", "Restart scan", false)),
+                    Some(("s", "Sort by name", *self.ctx.sort_by_name.lock().unwrap())),
                     Some(("h/j or arrows", "Navigate", false)),
                 ]),
                 chunks[2],
