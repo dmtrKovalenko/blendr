@@ -233,9 +233,10 @@ impl AppRoute for PeripheralList {
             .map(|(i, peripheral)| {
                 let is_highlighted = Some(i) == self.list_state.selected();
                 ListItem::new(Span::from(format!(
-                    "{}{}{}",
+                    "{}{} ({}) {}",
                     if is_highlighted { "> " } else { "  " },
                     peripheral.name,
+                    peripheral.address,
                     match peripheral.rssi {
                         Some(rssi) => format!(" (rssi {rssi})"),
                         None => String::from(""),
