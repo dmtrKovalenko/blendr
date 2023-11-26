@@ -67,7 +67,7 @@ fn render_title_with_navigation_controls(
     const NEXT_BUTTON_DENSE: &str = "  [->] ";
 
     let mut spans = vec![];
-    let available_width = area.width - 2; // 2 chars for borders on the left and right
+    let available_width = area.width.saturating_sub(2); // 2 chars for borders on the left and right
     let base_title = format!(
         "Characteristic {} / Service {}",
         char.char_name(),
@@ -154,11 +154,11 @@ impl AppRoute for ConnectionView {
                     }
                 }
                 (KeyCode::Left, Some(history), None) => {
-                    update_index(history.len() - 1);
+                    update_index(history.len().saturating_sub(1));
                 }
                 (KeyCode::Char('l'), _, _) => historical_view_index.annulate(),
                 (KeyCode::Right, Some(history), Some(current_historical_index))
-                    if current_historical_index == history.len() - 2 =>
+                    if history.len() > 2 && current_historical_index == history.len() - 2 =>
                 {
                     historical_view_index.annulate();
                 }

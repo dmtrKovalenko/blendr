@@ -134,7 +134,12 @@ impl<TId: Eq + Hash> StableListState<TId> {
         }
 
         let i = self.selected().unwrap_or(0);
-        let next = if i >= list.vec.len() - 1 { 0 } else { i + 1 };
+        let next = if i >= list.vec.len().saturating_sub(1) {
+            0
+        } else {
+            i + 1
+        };
+
         self.select(list, Some(next));
     }
 

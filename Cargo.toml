@@ -14,7 +14,7 @@ doc = false
 
 [dependencies]
 ansi-to-tui = "3.0.0"
-btleplug = "0.11.0"
+btleplug = "0.11.3"
 byteorder = "1.4.3"
 chrono = "0.4.26"
 clap = { version = "4.3.4", features = ["derive"] }
