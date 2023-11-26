@@ -29,7 +29,7 @@ impl GeneralOptions {
                     GeneralSort::DefaultSort => GeneralSort::Name,
                 };
 
-                return true;
+                true
             }
             _ => false,
         }

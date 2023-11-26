@@ -52,6 +52,8 @@ pub struct HandledPeripheral<TPer: Peripheral = btleplug::platform::Peripheral> 
 }
 
 impl GeneralSortable for HandledPeripheral {
+    const AVAILABLE_SORTS: &'static [GeneralSort] = &[GeneralSort::Name, GeneralSort::DefaultSort];
+
     fn cmp(&self, sort: &GeneralSort, a: &Self, b: &Self) -> std::cmp::Ordering {
         match sort {
             // Specifically put all the "unknown devices" to the end of the list.
@@ -86,16 +88,32 @@ pub struct ConnectedCharacteristic {
 }
 
 impl GeneralSortable for ConnectedCharacteristic {
+    const AVAILABLE_SORTS: &'static [GeneralSort] = &[GeneralSort::Name, GeneralSort::DefaultSort];
+
     fn cmp(&self, sort: &GeneralSort, a: &Self, b: &Self) -> std::cmp::Ordering {
         match sort {
-            GeneralSort::Name => (
-                a.service_name().to_lowercase(),
-                a.char_name().to_lowercase(),
-            )
-                .cmp(&(
-                    b.service_name().to_lowercase(),
-                    b.char_name().to_lowercase(),
-                )),
+            GeneralSort::Name => {
+                if a.service_name() == b.service_name() && a.char_name() == b.char_name() {
+                    return std::cmp::Ordering::Equal;
+                }
+
+                if a.has_readable_char_name() && !b.has_readable_char_name() {
+                    return std::cmp::Ordering::Less;
+                }
+
+                if !a.has_readable_char_name() && b.has_readable_char_name() {
+                    return std::cmp::Ordering::Greater;
+                }
+
+                (
+                    a.service_name().to_lowercase(),
+                    a.char_name().to_lowercase(),
+                )
+                    .cmp(&(
+                        b.service_name().to_lowercase(),
+                        b.char_name().to_lowercase(),
+                    ))
+            }
             GeneralSort::DefaultSort => (a.service_uuid, a.uuid).cmp(&(b.service_uuid, b.uuid)),
         }
     }
@@ -108,6 +126,14 @@ impl StableListItem<uuid::Uuid> for ConnectedCharacteristic {
 }
 
 impl ConnectedCharacteristic {
+    pub fn has_readable_char_name(&self) -> bool {
+        self.custom_char_name.is_some() || self.standard_gatt_char_name.is_some()
+    }
+
+    pub fn has_readable_service_name(&self) -> bool {
+        self.custom_service_name.is_some() || self.standard_gatt_service_name.is_some()
+    }
+
     pub fn char_name(&self) -> Cow<'_, str> {
         if let Some(custom_name) = &self.custom_char_name {
             return Cow::from(format!("{} ({})", custom_name, self.uuid));
@@ -148,8 +174,7 @@ impl ConnectedPeripheral {
         let options = ctx.general_options.read();
 
         if let Ok(options) = options.as_ref() {
-            self.characteristics
-                .sort_by(|a, b| options.sort.apply_sort(a, b))
+            options.sort.sort(&mut self.characteristics)
         }
     }
 
@@ -185,7 +210,7 @@ impl ConnectedPeripheral {
             characteristics,
         };
 
-        view.apply_sort(&ctx);
+        view.apply_sort(ctx);
         view
     }
 }
@@ -262,7 +287,7 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
             .collect::<Vec<_>>();
 
         let sort = context.general_options.read()?.sort;
-        peripherals.sort_by(|p1, p2| sort.apply_sort(p1, p2));
+        sort.sort(&mut peripherals);
 
         context.latest_scan.write()?.replace(BleScan {
             peripherals,

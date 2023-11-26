@@ -290,7 +290,7 @@ impl AppRoute for ConnectionView {
 
             use ansi_to_tui::IntoText;
             if let Ok(output) = hexyl_output_buf.into_text() {
-                text.extend(output.into_iter());
+                text.extend(output);
             } else {
                 tracing::error!(
                     ?hexyl_output_buf,

@@ -73,12 +73,22 @@ pub enum GeneralSort {
     DefaultSort,
 }
 
+impl GeneralSort {
+    pub fn sort<T: GeneralSortable>(&self, data: &mut [T]) {
+        let should_sort = T::AVAILABLE_SORTS.contains(&self);
+
+        if should_sort {
+            data.sort_by(|a, b| a.cmp(self, a, b));
+        }
+    }
+}
+
 pub trait GeneralSortable {
+    const AVAILABLE_SORTS: &'static [GeneralSort];
     fn cmp(&self, sort: &GeneralSort, a: &Self, b: &Self) -> std::cmp::Ordering;
 }
 
 impl GeneralSort {
-    #[allow(dead_code)] // ? It is actually used in the code, some clippy bug
     pub fn apply_sort<T: GeneralSortable>(&self, a: &T, b: &T) -> std::cmp::Ordering {
         a.cmp(self, a, b)
     }

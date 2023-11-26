@@ -1,6 +1,7 @@
 use clap::CommandFactory;
 
 #[path = "src/cli_args.rs"]
+#[allow(dead_code)]
 mod cli_args;
 
 fn main() -> std::io::Result<()> {

@@ -111,7 +111,7 @@ pub fn render_help<const N: usize>(
             // 4 spaces is a good spacing between the two helpers
             key_span
         })
-        .chain(general_options_spans.into_iter())
+        .chain(general_options_spans)
         .collect();
 
     Paragraph::new(Line::from(spans))
