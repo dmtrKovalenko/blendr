@@ -1,3 +1,5 @@
+use crate::{cli_args, Ctx};
+use std::sync::Arc;
 use tui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
@@ -62,12 +64,42 @@ impl<'a, TTitle: Into<Title<'a>> + Default> From<BlendrBlock<'a, TTitle>>
     }
 }
 
-pub fn render_help<const N: usize>(help: [Option<(&str, &str, bool)>; N]) -> impl Widget {
+pub fn render_help<const N: usize>(
+    ctx: Arc<Ctx>,
+    help: [Option<(&str, &str, bool)>; N],
+) -> impl Widget {
+    const SPACING: &str = "    ";
+    let general_options_guard = &ctx.general_options.read();
+    let general_options = general_options_guard.as_ref().unwrap();
+
+    let general_options_spans = [
+        Span::from("Sort by: "),
+        Span::styled(
+            "[n]ame",
+            if general_options.sort == cli_args::GeneralSort::Name {
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            },
+        ),
+        Span::from(" | "),
+        Span::styled(
+            "default",
+            if general_options.sort == cli_args::GeneralSort::DefaultSort {
+                Style::default().add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            },
+        ),
+        Span::from(SPACING),
+    ];
+
     let spans: Vec<_> = help
         .into_iter()
         .flatten()
         .map(|(key, text, bold)| {
-            const SPACING: &str = "    ";
             let mut key_span = Span::from(format!("[{key}] {text}{SPACING}"));
 
             if bold {
@@ -79,9 +111,10 @@ pub fn render_help<const N: usize>(help: [Option<(&str, &str, bool)>; N]) -> imp
             // 4 spaces is a good spacing between the two helpers
             key_span
         })
+        .chain(general_options_spans)
         .collect();
 
     Paragraph::new(Line::from(spans))
-        .style(Style::default().fg(Color::DarkGray))
+        .style(Style::default().fg(Color::Gray))
         .wrap(Wrap { trim: true })
 }

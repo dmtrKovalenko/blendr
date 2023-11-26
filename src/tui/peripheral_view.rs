@@ -20,7 +20,7 @@ use crate::{
         },
         HandleKeydownResult,
     },
-    Ctx,
+    Ctx, GeneralOptions,
 };
 use std::{
     ops::Deref,
@@ -124,6 +124,20 @@ impl AppRoute for PeripheralView {
                     .collect();
 
                 self.list_state.stabilize_selected_index(&filtered_chars);
+
+                if GeneralOptions::handle_keystroke(&key.code, &self.ctx) {
+                    drop(active_route);
+
+                    let mut active_route = self.ctx.active_route.write();
+                    match active_route.as_deref_mut() {
+                        Ok(Route::PeripheralConnectedView(peripheral)) => {
+                            peripheral.apply_sort(&self.ctx);
+                        }
+                        _ => (),
+                    }
+
+                    return HandleKeydownResult::Handled;
+                }
 
                 match self.focus {
                     Focus::Search => {
@@ -339,12 +353,15 @@ impl AppRoute for PeripheralView {
         f.render_stateful_widget(items, chunks[1], self.list_state.get_ratatui_state());
         if chunks[2].height > 0 {
             f.render_widget(
-                block::render_help([
-                    Some(("/", "Search", false)),
-                    Some(("<- | d", "Disconnect from device", false)),
-                    Some(("->", "View characteristic", false)),
-                    Some(("r", "Reconnect to device scan", false)),
-                ]),
+                block::render_help(
+                    Arc::clone(&self.ctx),
+                    [
+                        Some(("/", "Search", false)),
+                        Some(("<- | d", "Disconnect from device", false)),
+                        Some(("->", "View characteristic", false)),
+                        Some(("r", "Reconnect to device scan", false)),
+                    ],
+                ),
                 chunks[2],
             );
         }

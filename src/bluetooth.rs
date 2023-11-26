@@ -1,3 +1,4 @@
+use crate::cli_args::{GeneralSort, GeneralSortable};
 use crate::error::{Error, Result};
 use crate::tui::ui::StableListItem;
 use crate::Ctx;
@@ -13,6 +14,7 @@ use tokio::time::{self, sleep, timeout};
 
 pub mod ble_default_services;
 
+const DEFAULT_DEVICE_NAME: &str = "Unknown device";
 const TIMEOUT: Duration = Duration::from_secs(10);
 
 pub async fn disconnect_with_timeout(peripheral: &btleplug::platform::Peripheral) {
@@ -49,6 +51,24 @@ pub struct HandledPeripheral<TPer: Peripheral = btleplug::platform::Peripheral> 
     pub services_names: Vec<Cow<'static, str>>,
 }
 
+impl GeneralSortable for HandledPeripheral {
+    const AVAILABLE_SORTS: &'static [GeneralSort] = &[GeneralSort::Name, GeneralSort::DefaultSort];
+
+    fn cmp(&self, sort: &GeneralSort, a: &Self, b: &Self) -> std::cmp::Ordering {
+        match sort {
+            // Specifically put all the "unknown devices" to the end of the list.
+            GeneralSort::Name if a.name == b.name && a.name == DEFAULT_DEVICE_NAME => {
+                std::cmp::Ordering::Equal
+            }
+            GeneralSort::Name if b.name == DEFAULT_DEVICE_NAME => std::cmp::Ordering::Less,
+            GeneralSort::Name if a.name == DEFAULT_DEVICE_NAME => std::cmp::Ordering::Greater,
+
+            GeneralSort::Name => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            GeneralSort::DefaultSort => a.rssi.cmp(&b.rssi),
+        }
+    }
+}
+
 impl StableListItem<PeripheralId> for HandledPeripheral {
     fn id(&self) -> PeripheralId {
         self.ble_peripheral.id()
@@ -67,6 +87,38 @@ pub struct ConnectedCharacteristic {
     pub service_uuid: uuid::Uuid,
 }
 
+impl GeneralSortable for ConnectedCharacteristic {
+    const AVAILABLE_SORTS: &'static [GeneralSort] = &[GeneralSort::Name, GeneralSort::DefaultSort];
+
+    fn cmp(&self, sort: &GeneralSort, a: &Self, b: &Self) -> std::cmp::Ordering {
+        match sort {
+            GeneralSort::Name => {
+                if a.service_name() == b.service_name() && a.char_name() == b.char_name() {
+                    return std::cmp::Ordering::Equal;
+                }
+
+                if a.has_readable_char_name() && !b.has_readable_char_name() {
+                    return std::cmp::Ordering::Less;
+                }
+
+                if !a.has_readable_char_name() && b.has_readable_char_name() {
+                    return std::cmp::Ordering::Greater;
+                }
+
+                (
+                    a.service_name().to_lowercase(),
+                    a.char_name().to_lowercase(),
+                )
+                    .cmp(&(
+                        b.service_name().to_lowercase(),
+                        b.char_name().to_lowercase(),
+                    ))
+            }
+            GeneralSort::DefaultSort => (a.service_uuid, a.uuid).cmp(&(b.service_uuid, b.uuid)),
+        }
+    }
+}
+
 impl StableListItem<uuid::Uuid> for ConnectedCharacteristic {
     fn id(&self) -> uuid::Uuid {
         self.uuid
@@ -74,6 +126,14 @@ impl StableListItem<uuid::Uuid> for ConnectedCharacteristic {
 }
 
 impl ConnectedCharacteristic {
+    pub fn has_readable_char_name(&self) -> bool {
+        self.custom_char_name.is_some() || self.standard_gatt_char_name.is_some()
+    }
+
+    pub fn has_readable_service_name(&self) -> bool {
+        self.custom_service_name.is_some() || self.standard_gatt_service_name.is_some()
+    }
+
     pub fn char_name(&self) -> Cow<'_, str> {
         if let Some(custom_name) = &self.custom_char_name {
             return Cow::from(format!("{} ({})", custom_name, self.uuid));
@@ -110,9 +170,17 @@ pub struct ConnectedPeripheral {
 }
 
 impl ConnectedPeripheral {
+    pub fn apply_sort(&mut self, ctx: &Ctx) {
+        let options = ctx.general_options.read();
+
+        if let Ok(options) = options.as_ref() {
+            options.sort.sort(&mut self.characteristics)
+        }
+    }
+
     pub fn new(ctx: &Ctx, peripheral: HandledPeripheral) -> Self {
         let chars = peripheral.ble_peripheral.characteristics();
-        let characteristics = chars
+        let characteristics: Vec<_> = chars
             .into_iter()
             .map(|char| ConnectedCharacteristic {
                 custom_char_name: ctx
@@ -137,10 +205,13 @@ impl ConnectedPeripheral {
             })
             .collect();
 
-        Self {
+        let mut view = Self {
             peripheral,
             characteristics,
-        }
+        };
+
+        view.apply_sort(ctx);
+        view
     }
 }
 
@@ -170,7 +241,7 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
             .map(Peripheral::properties)
             .collect::<Vec<_>>();
 
-        let peripherals = try_join_all(properties_futures)
+        let mut peripherals = try_join_all(properties_futures)
             .await?
             .into_iter()
             .zip(peripherals.into_iter())
@@ -179,7 +250,7 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
                     let name_unset = properties.local_name.is_none();
                     let name = properties
                         .local_name
-                        .unwrap_or_else(|| "Unknown device".to_string());
+                        .unwrap_or_else(|| DEFAULT_DEVICE_NAME.to_string());
 
                     HandledPeripheral {
                         ble_peripheral: peripheral,
@@ -214,6 +285,9 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
                 })
             })
             .collect::<Vec<_>>();
+
+        let sort = context.general_options.read()?.sort;
+        sort.sort(&mut peripherals);
 
         context.latest_scan.write()?.replace(BleScan {
             peripherals,

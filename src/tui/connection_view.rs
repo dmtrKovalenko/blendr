@@ -290,7 +290,7 @@ impl AppRoute for ConnectionView {
 
             use ansi_to_tui::IntoText;
             if let Ok(output) = hexyl_output_buf.into_text() {
-                text.extend(output.into_iter());
+                text.extend(output);
             } else {
                 tracing::error!(
                     ?hexyl_output_buf,
@@ -331,34 +331,37 @@ impl AppRoute for ConnectionView {
         f.render_widget(paragraph, chunks[0]);
         if chunks[1].height > 0 {
             f.render_widget(
-                block::render_help([
-                    Some(("<-", "Previous value", false)),
-                    Some(("->", "Next value", false)),
-                    Some(("d", "[D]isconnect from device", false)),
-                    Some(("u", "Parse numeric as [u]nsigned", self.unsigned_numbers)),
-                    Some(("f", "Parse numeric as [f]loats", self.float_numbers)),
-                    historical_index.map(|_| {
-                        (
-                            "l",
-                            "Go to the [l]atest values",
-                            self.highlight_copy_char_renders_delay_stack > 0,
-                        )
-                    }),
-                    self.clipboard.as_ref().map(|_| {
-                        (
-                            "c",
-                            "Copy [c]haracteristic UUID",
-                            self.highlight_copy_char_renders_delay_stack > 0,
-                        )
-                    }),
-                    self.clipboard.as_ref().map(|_| {
-                        (
-                            "s",
-                            "Copy [s]ervice UUID",
-                            self.highlight_copy_service_renders_delay_stack > 0,
-                        )
-                    }),
-                ]),
+                block::render_help(
+                    Arc::clone(&self.ctx),
+                    [
+                        Some(("<-", "Previous value", false)),
+                        Some(("->", "Next value", false)),
+                        Some(("d", "[D]isconnect from device", false)),
+                        Some(("u", "Parse numeric as [u]nsigned", self.unsigned_numbers)),
+                        Some(("f", "Parse numeric as [f]loats", self.float_numbers)),
+                        historical_index.map(|_| {
+                            (
+                                "l",
+                                "Go to the [l]atest values",
+                                self.highlight_copy_char_renders_delay_stack > 0,
+                            )
+                        }),
+                        self.clipboard.as_ref().map(|_| {
+                            (
+                                "c",
+                                "Copy [c]haracteristic UUID",
+                                self.highlight_copy_char_renders_delay_stack > 0,
+                            )
+                        }),
+                        self.clipboard.as_ref().map(|_| {
+                            (
+                                "s",
+                                "Copy [s]ervice UUID",
+                                self.highlight_copy_service_renders_delay_stack > 0,
+                            )
+                        }),
+                    ],
+                ),
                 chunks[1],
             );
         }

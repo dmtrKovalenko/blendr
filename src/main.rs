@@ -2,6 +2,7 @@
 mod bluetooth;
 mod cli_args;
 mod error;
+mod general_options;
 mod route;
 mod tui;
 
@@ -9,6 +10,7 @@ use crate::{bluetooth::BleScan, tui::run_tui_app};
 use btleplug::platform::Manager;
 use clap::Parser;
 use cli_args::Args;
+use general_options::GeneralOptions;
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex, RwLockReadGuard};
 
@@ -21,6 +23,7 @@ pub struct Ctx {
     active_side_effect_handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
     request_scan_restart: Mutex<bool>,
     global_error: Mutex<Option<crate::error::Error>>,
+    general_options: RwLock<general_options::GeneralOptions>,
 }
 
 impl Ctx {
@@ -37,7 +40,6 @@ impl Ctx {
 async fn main() {
     let args = Args::parse();
     let ctx = Arc::new(Ctx {
-        args,
         latest_scan: RwLock::new(None),
         active_route: RwLock::new(route::Route::PeripheralList),
         active_side_effect_handle: Mutex::new(None),
@@ -46,6 +48,8 @@ async fn main() {
             .expect("Can not establish BLE connection."),
         request_scan_restart: Mutex::new(false),
         global_error: Mutex::new(None),
+        general_options: RwLock::new(GeneralOptions::new(&args)),
+        args,
     });
 
     let ctx_clone = Arc::clone(&ctx);
