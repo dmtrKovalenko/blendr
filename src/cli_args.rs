@@ -65,6 +65,25 @@ fn test_parse_name_map() {
     std::fs::remove_file(test_path).expect("Unable to delete file");
 }
 
+#[derive(Default, PartialEq, Eq, Debug, Clone, Copy, clap::ValueEnum)]
+pub enum GeneralSort {
+    Name,
+    #[default]
+    /// The default sort based on the trait implementer.
+    DefaultSort,
+}
+
+pub trait GeneralSortable {
+    fn cmp(&self, sort: &GeneralSort, a: &Self, b: &Self) -> std::cmp::Ordering;
+}
+
+impl GeneralSort {
+    #[allow(dead_code)] // ? It is actually used in the code, some clippy bug
+    pub fn apply_sort<T: GeneralSortable>(&self, a: &T, b: &T) -> std::cmp::Ordering {
+        a.cmp(self, a, b)
+    }
+}
+
 #[derive(Debug, Parser)]
 #[command(
     version=env!("CARGO_PKG_VERSION"),
@@ -79,7 +98,7 @@ pub struct Args {
     #[clap(default_value_t = 0)]
     pub adapter_index: usize,
 
-    #[clap(long, short)]
+    #[clap(long, short = 'i')]
     /// Scan interval in milliseconds.
     #[clap(default_value_t = 1000)]
     pub scan_interval: u64,
@@ -110,7 +129,8 @@ pub struct Args {
     #[clap(long, value_parser = clap::builder::ValueParser::new(parse_name_map))]
     pub names_map_file: Option<HashMap<uuid::Uuid, String>>,
 
-    /// Sort peripherals by name
+    /// Default sort type for all the views and lists.
     #[clap(long)]
-    pub sort_by_name: bool,
+    #[arg(value_enum)]
+    pub sort: Option<GeneralSort>,
 }

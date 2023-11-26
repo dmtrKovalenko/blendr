@@ -3,6 +3,7 @@ use crate::error::Result;
 use crate::tui::ui::{block, list::StableListState, search_input, BlendrBlock, ShouldUpdate};
 use crate::tui::ui::{HandleInputResult, StableIndexList};
 use crate::tui::{AppRoute, HandleKeydownResult};
+use crate::GeneralOptions;
 use crate::{route::Route, Ctx};
 use btleplug::platform::PeripheralId;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -95,6 +96,10 @@ impl AppRoute for PeripheralList {
             self.list_state
                 .stabilize_selected_index(&filtered_peripherals);
 
+            if GeneralOptions::handle_keystroke(&key.code, &self.ctx) {
+                return HandleKeydownResult::Handled;
+            }
+
             match self.focus {
                 Focus::Search => {
                     search_input::handle_search_input(&mut self.search, key);
@@ -140,8 +145,8 @@ impl AppRoute for PeripheralList {
                         }
                         KeyCode::Char('u') => self.to_remove_unknowns = !self.to_remove_unknowns,
                         KeyCode::Char('s') => {
-                            let mut sort_by_name = self.ctx.sort_by_name.lock().unwrap();
-                            *sort_by_name = !*sort_by_name;
+                            // let mut sort_by_name = self.ctx.sort_by_name.lock().unwrap();
+                            // *sort_by_name = !*sort_by_name;
                         }
                         _ => {}
                     }
@@ -269,14 +274,18 @@ impl AppRoute for PeripheralList {
         f.render_stateful_widget(items, chunks[1], self.list_state.get_ratatui_state());
         if chunks[2].height > 0 {
             f.render_widget(
-                block::render_help([
-                    Some(("q", "Quit", false)),
-                    Some(("u", "Hide unknown devices", self.to_remove_unknowns)),
-                    Some(("->", "Connect to device", false)),
-                    Some(("r", "Restart scan", false)),
-                    Some(("s", "Sort by name", *self.ctx.sort_by_name.lock().unwrap())),
-                    Some(("h/j or arrows", "Navigate", false)),
-                ]),
+                block::render_help(
+                    Arc::clone(&self.ctx),
+                    [
+                        Some(("q", "Quit", false)),
+                        Some(("u", "Hide unknown devices", self.to_remove_unknowns)),
+                        Some(("->", "Connect to device", false)),
+                        Some(("r", "Restart scan", false)),
+                        // FIXME genearl sort
+                        // Some(("s", "Sort by name", *self.ctx.sort_by_name.lock().unwrap())),
+                        Some(("h/j or arrows", "Navigate", false)),
+                    ],
+                ),
                 chunks[2],
             );
         }

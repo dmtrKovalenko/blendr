@@ -1,3 +1,4 @@
+use crate::cli_args::{GeneralSort, GeneralSortable};
 use crate::error::{Error, Result};
 use crate::tui::ui::StableListItem;
 use crate::Ctx;
@@ -13,6 +14,7 @@ use tokio::time::{self, sleep, timeout};
 
 pub mod ble_default_services;
 
+const DEFAULT_DEVICE_NAME: &str = "Unknown device";
 const TIMEOUT: Duration = Duration::from_secs(10);
 
 pub async fn disconnect_with_timeout(peripheral: &btleplug::platform::Peripheral) {
@@ -49,6 +51,22 @@ pub struct HandledPeripheral<TPer: Peripheral = btleplug::platform::Peripheral> 
     pub services_names: Vec<Cow<'static, str>>,
 }
 
+impl GeneralSortable for HandledPeripheral {
+    fn cmp(&self, sort: &GeneralSort, a: &Self, b: &Self) -> std::cmp::Ordering {
+        match sort {
+            // Specifically put all the "unknown devices" to the end of the list.
+            GeneralSort::Name if a.name == b.name && a.name == DEFAULT_DEVICE_NAME => {
+                std::cmp::Ordering::Equal
+            }
+            GeneralSort::Name if b.name == DEFAULT_DEVICE_NAME => std::cmp::Ordering::Less,
+            GeneralSort::Name if a.name == DEFAULT_DEVICE_NAME => std::cmp::Ordering::Greater,
+
+            GeneralSort::Name => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            GeneralSort::DefaultSort => a.rssi.cmp(&b.rssi),
+        }
+    }
+}
+
 impl StableListItem<PeripheralId> for HandledPeripheral {
     fn id(&self) -> PeripheralId {
         self.ble_peripheral.id()
@@ -65,6 +83,22 @@ pub struct ConnectedCharacteristic {
     pub custom_service_name: Option<String>,
     pub uuid: uuid::Uuid,
     pub service_uuid: uuid::Uuid,
+}
+
+impl GeneralSortable for ConnectedCharacteristic {
+    fn cmp(&self, sort: &GeneralSort, a: &Self, b: &Self) -> std::cmp::Ordering {
+        match sort {
+            GeneralSort::Name => (
+                a.service_name().to_lowercase(),
+                a.char_name().to_lowercase(),
+            )
+                .cmp(&(
+                    b.service_name().to_lowercase(),
+                    b.char_name().to_lowercase(),
+                )),
+            GeneralSort::DefaultSort => (a.service_uuid, a.uuid).cmp(&(b.service_uuid, b.uuid)),
+        }
+    }
 }
 
 impl StableListItem<uuid::Uuid> for ConnectedCharacteristic {
@@ -110,9 +144,18 @@ pub struct ConnectedPeripheral {
 }
 
 impl ConnectedPeripheral {
+    pub fn apply_sort(&mut self, ctx: &Ctx) {
+        let options = ctx.general_options.read();
+
+        if let Ok(options) = options.as_ref() {
+            self.characteristics
+                .sort_by(|a, b| options.sort.apply_sort(a, b))
+        }
+    }
+
     pub fn new(ctx: &Ctx, peripheral: HandledPeripheral) -> Self {
         let chars = peripheral.ble_peripheral.characteristics();
-        let characteristics = chars
+        let characteristics: Vec<_> = chars
             .into_iter()
             .map(|char| ConnectedCharacteristic {
                 custom_char_name: ctx
@@ -137,10 +180,13 @@ impl ConnectedPeripheral {
             })
             .collect();
 
-        Self {
+        let mut view = Self {
             peripheral,
             characteristics,
-        }
+        };
+
+        view.apply_sort(&ctx);
+        view
     }
 }
 
@@ -179,7 +225,7 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
                     let name_unset = properties.local_name.is_none();
                     let name = properties
                         .local_name
-                        .unwrap_or_else(|| "Unknown device".to_string());
+                        .unwrap_or_else(|| DEFAULT_DEVICE_NAME.to_string());
 
                     HandledPeripheral {
                         ble_peripheral: peripheral,
@@ -215,9 +261,8 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
             })
             .collect::<Vec<_>>();
 
-        if *context.sort_by_name.lock().unwrap() {
-            peripherals.sort_by(|p1, p2| (&p1.name, p1.address).cmp(&(&p2.name, p2.address)));
-        }
+        let sort = context.general_options.read()?.sort;
+        peripherals.sort_by(|p1, p2| sort.apply_sort(p1, p2));
 
         context.latest_scan.write()?.replace(BleScan {
             peripherals,
