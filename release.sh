@@ -2,6 +2,8 @@
 
 VERSION="$1"
 
+git pull
+
 cargo install cargo-edit
 cargo set-version "$VERSION"
 
