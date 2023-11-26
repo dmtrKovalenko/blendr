@@ -4,6 +4,7 @@ use crate::tui::ui::{block, list::StableListState, search_input, BlendrBlock, Sh
 use crate::tui::ui::{HandleInputResult, StableIndexList};
 use crate::tui::{AppRoute, HandleKeydownResult};
 use crate::{route::Route, Ctx};
+use btleplug::api::BDAddr;
 use btleplug::platform::PeripheralId;
 use crossterm::event::{KeyCode, KeyEvent};
 use regex::Regex;
@@ -19,6 +20,10 @@ use tui::{
     widgets::{List, ListItem},
     Frame,
 };
+
+lazy_static::lazy_static! {
+    static ref DEFAULT_BD_ADDR: BDAddr = BDAddr::default();
+}
 
 pub enum Focus {
     Search,
@@ -232,17 +237,52 @@ impl AppRoute for PeripheralList {
             .enumerate()
             .map(|(i, peripheral)| {
                 let is_highlighted = Some(i) == self.list_state.selected();
-                ListItem::new(Span::from(format!(
-                    "{}{} ({}) {}",
-                    if is_highlighted { "> " } else { "  " },
-                    peripheral.name,
-                    peripheral.address,
-                    match peripheral.rssi {
-                        Some(rssi) => format!(" (rssi {rssi})"),
-                        None => String::from(""),
-                    }
-                )))
-                .style(Style::default().fg(Color::Gray))
+                let mut spans = vec![];
+                if is_highlighted {
+                    spans.push(Span::styled("> ", Style::default().fg(Color::Blue)));
+                } else {
+                    spans.push(Span::from("  "));
+                }
+
+                spans.push(Span::styled(
+                    peripheral.name.as_str(),
+                    if is_highlighted {
+                        Style::default().fg(Color::White)
+                    } else {
+                        Style::default()
+                    },
+                ));
+
+                let address_info = if peripheral.address != *DEFAULT_BD_ADDR {
+                    peripheral.address.to_string()
+                } else {
+                    "".to_string()
+                };
+
+                let rssi_info = if let Some(rssi) = peripheral.rssi {
+                    format!("rssi {}", rssi)
+                } else {
+                    "".to_string()
+                };
+
+                let additional_info_params = vec![address_info, rssi_info]
+                    .into_iter()
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<_>>();
+
+                if !additional_info_params.is_empty() {
+                    let style = if is_highlighted {
+                        Style::default()
+                    } else {
+                        Style::default().add_modifier(Modifier::DIM)
+                    };
+
+                    spans.push(Span::styled(" (", style));
+                    spans.push(Span::styled(additional_info_params.join(", "), style));
+                    spans.push(Span::styled(")", style));
+                }
+
+                ListItem::new(Line::from(spans))
             })
             .collect();
 
