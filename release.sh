@@ -2,6 +2,12 @@
 
 VERSION="$1"
 
+if ! git diff --quiet; then
+  echo "Error: There are unstaged changes in the repository."
+  exit 1
+fi
+
+git checkout main
 git pull
 
 cargo install cargo-edit
