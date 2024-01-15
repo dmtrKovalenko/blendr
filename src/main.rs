@@ -11,6 +11,7 @@ use btleplug::platform::Manager;
 use clap::Parser;
 use cli_args::Args;
 use general_options::GeneralOptions;
+use std::env;
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex, RwLockReadGuard};
 
@@ -39,6 +40,18 @@ impl Ctx {
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
+    let file_appender = tracing_appender::rolling::daily(env::temp_dir().join("blendr"), "cli.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
+    tracing_subscriber::fmt()
+        .with_writer(non_blocking)
+        .with_max_level(match args.log_level.unwrap_or_default() {
+            cli_args::LogLevel::Debug => tracing::Level::DEBUG,
+            cli_args::LogLevel::Error => tracing::Level::ERROR,
+        })
+        .pretty()
+        .init();
+
     let ctx = Arc::new(Ctx {
         latest_scan: RwLock::new(None),
         active_route: RwLock::new(route::Route::PeripheralList),
