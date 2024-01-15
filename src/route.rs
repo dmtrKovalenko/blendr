@@ -88,15 +88,15 @@ impl Route {
     ) -> error::Result<()> {
         match (previous, self) {
             (Route::PeripheralList, Route::PeripheralWaitingView { peripheral, retry }) => {
-                while peripheral
+                while !peripheral
                     .ble_peripheral
                     .is_connected()
                     .await
-                    .map(|c| !c)
-                    .unwrap_or(true)
+                    .unwrap_or(false)
                 {
+                    tracing::debug!("Connecting to peripheral.");
                     if let Err(e) =
-                        timeout(Duration::from_secs(2), peripheral.ble_peripheral.connect()).await
+                        timeout(Duration::from_secs(10), peripheral.ble_peripheral.connect()).await
                     {
                         tracing::error!(?e, "Failed to connect to peripheral.");
                     }
@@ -129,6 +129,10 @@ impl Route {
                     .read(&characteristic.ble_characteristic)
                     .await
                 {
+                    if !ble_peripheral.is_connected().await.unwrap_or(false) {
+                        break;
+                    }
+
                     history.write().unwrap().push(CharacteristicValue {
                         time: chrono::Local::now(),
                         data,

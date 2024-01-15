@@ -88,10 +88,11 @@ pub trait GeneralSortable {
     fn cmp(&self, sort: &GeneralSort, a: &Self, b: &Self) -> std::cmp::Ordering;
 }
 
-impl GeneralSort {
-    pub fn apply_sort<T: GeneralSortable>(&self, a: &T, b: &T) -> std::cmp::Ordering {
-        a.cmp(self, a, b)
-    }
+#[derive(Default, PartialEq, Eq, Debug, Clone, Copy, clap::ValueEnum)]
+pub enum LogLevel {
+    Debug,
+    #[default]
+    Error,
 }
 
 #[derive(Debug, Parser)]
@@ -143,4 +144,10 @@ pub struct Args {
     #[clap(long)]
     #[arg(value_enum)]
     pub sort: Option<GeneralSort>,
+
+    /// Log level for the CLI.
+    /// Logs are located at the $TMPDIR/blendr/*-cli.log and rotated daily.
+    #[clap(long)]
+    #[arg(value_enum)]
+    pub log_level: Option<LogLevel>,
 }
