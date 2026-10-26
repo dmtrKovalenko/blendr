@@ -1,5 +1,6 @@
 use crate::{
     bluetooth::ConnectedCharacteristic,
+    lua_decoder::{DecodeOutcome, LuaDecoderEngine},
     route::{CharacteristicValue, Route},
     tui::{
         ui::{
@@ -29,6 +30,10 @@ pub struct ConnectionView {
     highlight_copy_char_renders_delay_stack: u8,
     highlight_copy_service_renders_delay_stack: u8,
     clipboard: Option<ClipboardContext>,
+    /// Custom Lua decoders. Lives here (not in `Ctx`) because `mlua::Lua` is
+    /// `!Send`/`!Sync` and the connection view is only ever touched from the
+    /// single render thread, so the VM never crosses a thread boundary.
+    lua_decoders: Option<LuaDecoderEngine>,
 }
 
 fn try_parse_numeric_value<T: ByteOrder>(
@@ -108,6 +113,18 @@ impl AppRoute for ConnectionView {
     where
         Self: Sized,
     {
+        let lua_decoders = if ctx.config.has_decoders() {
+            match LuaDecoderEngine::new(&ctx.config) {
+                Ok(engine) => Some(engine),
+                Err(e) => {
+                    tracing::error!("Failed to initialize Lua decoder engine: {e}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         ConnectionView {
             ctx,
             float_numbers: false,
@@ -115,6 +132,7 @@ impl AppRoute for ConnectionView {
             highlight_copy_char_renders_delay_stack: 0,
             highlight_copy_service_renders_delay_stack: 0,
             clipboard: ClipboardContext::new().ok(),
+            lua_decoders,
         }
     }
 
@@ -245,6 +263,43 @@ impl AppRoute for ConnectionView {
             )));
 
             text.push(Line::from(""));
+
+            // Custom Lua decoder output (if one is registered for this UUID).
+            // Shown first since it is the user's explicit interpretation.
+            if let Some(engine) = self.lua_decoders.as_ref() {
+                if let Some(outcome) = engine.decode(&characteristic.uuid, &value.data) {
+                    match outcome {
+                        DecodeOutcome::Decoded { name, value } => {
+                            text.push(Line::from(vec![
+                                Span::raw("decoded by "),
+                                Span::styled(
+                                    name,
+                                    Style::default().add_modifier(Modifier::BOLD),
+                                ),
+                            ]));
+                            text.push(Line::from(Span::styled(
+                                value,
+                                Style::default()
+                                    .fg(Color::Magenta)
+                                    .add_modifier(Modifier::BOLD),
+                            )));
+                            text.push(Line::from(""));
+                        }
+                        DecodeOutcome::Error { name, message } => {
+                            text.push(Line::from(vec![
+                                Span::raw("decoder "),
+                                Span::styled(name, Style::default().add_modifier(Modifier::BOLD)),
+                                Span::raw(" failed"),
+                            ]));
+                            text.push(Line::from(Span::styled(
+                                message,
+                                Style::default().fg(Color::Red),
+                            )));
+                            text.push(Line::from(""));
+                        }
+                    }
+                }
+            }
 
             if let Ok(string_value) = String::from_utf8(value.data.clone()) {
                 if !string_value.is_empty() {

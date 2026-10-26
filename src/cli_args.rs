@@ -65,6 +65,22 @@ fn test_parse_name_map() {
     std::fs::remove_file(test_path).expect("Unable to delete file");
 }
 
+/// Validate that the --config path exists. Parsing happens later in
+/// `config::Config::load` to keep this file free of `crate::` deps (it is also
+/// compiled standalone by build.rs for man-page generation).
+fn parse_config_path(path: &str) -> Result<std::path::PathBuf, clap::Error> {
+    let path = std::path::PathBuf::from(path);
+
+    if !path.exists() || !path.is_file() {
+        return Err(clap::Error::raw(
+            clap::error::ErrorKind::InvalidValue,
+            format!("Config file {} does not exist.", path.display()),
+        ));
+    }
+
+    Ok(path)
+}
+
 #[derive(Default, PartialEq, Eq, Debug, Clone, Copy, clap::ValueEnum)]
 pub enum GeneralSort {
     Name,
@@ -139,6 +155,26 @@ pub struct Args {
     /// ```
     #[clap(long, value_parser = clap::builder::ValueParser::new(parse_name_map))]
     pub names_map_file: Option<HashMap<uuid::Uuid, String>>,
+
+    /// Path to a TOML config file for custom names and Lua decoders.
+    /// If omitted, a `.blendr.toml` in the current directory is loaded
+    /// automatically when present.
+    ///
+    /// Each [characteristics."<uuid>"] entry can set a display name (like
+    /// --names-map-file) and/or a Lua script that decodes incoming values into
+    /// a custom display string. The script is loaded from a .lua file
+    /// (relative to the config) when the value ends in .lua and that file
+    /// exists; otherwise it is treated as an inline snippet.
+    ///
+    /// # Example
+    ///
+    /// ```toml
+    /// [characteristics."0000FFE1-0000-1000-8000-00805F9B34FB"]
+    /// name = "Temperature"
+    /// script = "return string.format('%.1f C', read('<i2', 0) / 10)"
+    /// ```
+    #[clap(long, value_parser = clap::builder::ValueParser::new(parse_config_path))]
+    pub config: Option<std::path::PathBuf>,
 
     /// Default sort type for all the views and lists.
     #[clap(long)]

@@ -1,0 +1,43 @@
+# Example blendr config file.
+#
+#   blendr --config config_example.toml
+#
+# Each [characteristics."<uuid>"] entry configures one characteristic by UUID:
+#
+#   name    custom display name (like --names-map-file, but inline here)
+#   script  a Lua decoder, given either as:
+#             - a path to a .lua file (relative to this config file), used when
+#               the value ends in .lua AND that file exists, or
+#             - an inline Lua snippet (anything else)
+#
+# A decoder script runs every time a new value arrives for its UUID. The raw
+# bytes are exposed through these globals:
+#
+#   data   the value as a binary string (use with string.unpack)
+#   bytes  1-indexed table of byte integers (bytes[1] is the first byte)
+#   len    number of bytes
+#   hex    lowercase hex, e.g. "a1b2c3"
+#   read(fmt, offset)  convenience wrapper over string.unpack; offset is
+#                      0-indexed and defaults to 0. read("<i2", 0) reads a
+#                      little-endian signed 16-bit int at the start.
+#
+# The script must `return` a value (string or number) to display.
+
+# Name only, no decoder.
+[characteristics."0000ffe1-0000-1000-8000-00805f9b34fb"]
+name = "Core Service Data"
+
+# Inline decoder: little-endian signed 16-bit centidegrees -> "23.45 °C".
+[characteristics."5f78df94-798c-46f5-990a-b3eb6a065c88"]
+name = "Temperature"
+script = "return string.format('%.2f °C', read('<i2', 0) / 100)"
+
+# Inline decoder: unsigned 32-bit little-endian milliseconds -> "12.300 s".
+[characteristics."61c8849c-f639-4765-946e-5c3419bebb2a"]
+name = "Last Brushing Duration"
+script = "return string.format('%.3f s', read('<I4', 0) / 1000)"
+
+# Decoder loaded from an external file (path relative to this config file).
+[characteristics."64b4e8b5-0de5-401b-a21d-acc8db3b913a"]
+name = "Status Packet"
+script = "decoders/example.lua"

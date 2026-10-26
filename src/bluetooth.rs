@@ -183,16 +183,8 @@ impl ConnectedPeripheral {
         let characteristics: Vec<_> = chars
             .into_iter()
             .map(|char| ConnectedCharacteristic {
-                custom_char_name: ctx
-                    .args
-                    .names_map_file
-                    .as_ref()
-                    .and_then(|names| names.get(&char.uuid).cloned()),
-                custom_service_name: ctx
-                    .args
-                    .names_map_file
-                    .as_ref()
-                    .and_then(|names| names.get(&char.uuid).cloned()),
+                custom_char_name: ctx.custom_name(&char.uuid),
+                custom_service_name: ctx.custom_name(&char.uuid),
                 standard_gatt_char_name: ble_default_services::SPECIAL_CHARACTERISTICS_NAMES
                     .get(&char.uuid)
                     .copied(),
@@ -262,11 +254,7 @@ pub async fn start_scan(context: Arc<Ctx>) -> Result<()> {
                             .services
                             .iter()
                             .flat_map(|uuid| {
-                                let custom_name = context
-                                    .args
-                                    .names_map_file
-                                    .as_ref()
-                                    .and_then(|names| names.get(uuid).cloned());
+                                let custom_name = context.custom_name(uuid);
 
                                 let standard_name = ble_default_services::SPECIAL_SERVICES_NAMES
                                     .get(uuid)
